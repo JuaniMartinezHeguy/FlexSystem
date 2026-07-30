@@ -5,9 +5,7 @@ import {
   CreditCard, 
   Banknote, 
   Building2, 
-  Calendar, 
   PieChart as PieChartIcon, 
-  BarChart3, 
   ListFilter,
   Zap,
   Activity
@@ -17,12 +15,7 @@ import {
   PieChart, 
   Pie, 
   Cell, 
-  Tooltip, 
-  BarChart, 
-  Bar, 
-  XAxis, 
-  YAxis, 
-  CartesianGrid 
+  Tooltip
 } from 'recharts';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Suscripcion } from '../../types/database';
@@ -32,7 +25,7 @@ import { getTodayART, formatDateART } from '../../lib/dateUtils';
 import { Skeleton } from '../common/Skeleton';
 
 type Periodo = 'dia' | 'mes' | 'anio';
-type TipoGrafico = 'dona' | 'barras' | 'tabla';
+type TipoGrafico = 'dona' | 'tabla';
 
 export const StatsGimnasio: React.FC = () => {
   const [periodo, setPeriodo] = useState<Periodo>('mes');
@@ -50,7 +43,7 @@ export const StatsGimnasio: React.FC = () => {
       const { data } = await supabase
         .from('suscripciones')
         .select('*, plan:planes(*)')
-        .order('creado_en', { ascending: true });
+        .order('creado_en', { ascending: false });
 
       if (data) setSuscripciones(data as Suscripcion[]);
     } else {
@@ -100,41 +93,16 @@ export const StatsGimnasio: React.FC = () => {
 
   // Datos para Gráfico de Dona
   const dataPie = [
-    { name: 'Efectivo', value: totalEfectivo, count: countEfectivo, color: '#10b981', rawColor: 'emerald', key: 'efectivo', icon: Banknote },
-    { name: 'Transferencia / MP', value: totalTransferencia, count: countTransferencia, color: '#38bdf8', rawColor: 'sky', key: 'transferencia', icon: Building2 },
-    { name: 'Tarjeta', value: totalTarjeta, count: countTarjeta, color: '#a855f7', rawColor: 'purple', key: 'tarjeta', icon: CreditCard },
+    { name: 'Efectivo', value: totalEfectivo, count: countEfectivo, color: '#10b981', key: 'efectivo', icon: Banknote },
+    { name: 'Transferencia / MP', value: totalTransferencia, count: countTransferencia, color: '#38bdf8', key: 'transferencia', icon: Building2 },
+    { name: 'Tarjeta', value: totalTarjeta, count: countTarjeta, color: '#a855f7', key: 'tarjeta', icon: CreditCard },
   ].filter(item => item.value > 0 || subsFiltradas.length === 0);
 
-  // Si no hay datos, incluir los items en 0 para visualización de mapa
   const chartDataPie = dataPie.length > 0 ? dataPie : [
-    { name: 'Efectivo', value: 1, count: 0, color: '#10b981', rawColor: 'emerald', key: 'efectivo', icon: Banknote },
-    { name: 'Transferencia / MP', value: 1, count: 0, color: '#38bdf8', rawColor: 'sky', key: 'transferencia', icon: Building2 },
-    { name: 'Tarjeta', value: 1, count: 0, color: '#a855f7', rawColor: 'purple', key: 'tarjeta', icon: CreditCard },
+    { name: 'Efectivo', value: 1, count: 0, color: '#10b981', key: 'efectivo', icon: Banknote },
+    { name: 'Transferencia / MP', value: 1, count: 0, color: '#38bdf8', key: 'transferencia', icon: Building2 },
+    { name: 'Tarjeta', value: 1, count: 0, color: '#a855f7', key: 'tarjeta', icon: CreditCard },
   ];
-
-  // Datos agrupados por fecha para el gráfico de barras apiladas cibernético
-  const dateMap: { [key: string]: { fecha: string; fechaFormat: string; efectivo: number; transferencia: number; tarjeta: number; total: number } } = {};
-  
-  subsFiltradas.forEach(s => {
-    const f = s.fecha_inicio || s.creado_en?.substring(0, 10) || hoyStr;
-    if (!dateMap[f]) {
-      dateMap[f] = {
-        fecha: f,
-        fechaFormat: formatDateART(f),
-        efectivo: 0,
-        transferencia: 0,
-        tarjeta: 0,
-        total: 0
-      };
-    }
-    const monto = Number(s.monto_pagado) || 0;
-    if (s.medio_pago === 'efectivo') dateMap[f].efectivo += monto;
-    else if (s.medio_pago === 'transferencia') dateMap[f].transferencia += monto;
-    else if (s.medio_pago === 'tarjeta') dateMap[f].tarjeta += monto;
-    dateMap[f].total += monto;
-  });
-
-  const dataBarras = Object.values(dateMap).sort((a, b) => a.fecha.localeCompare(b.fecha));
 
   // Custom Tooltip Recharts Cybertech
   const CustomTooltipPie = ({ active, payload }: any) => {
@@ -153,44 +121,6 @@ export const StatsGimnasio: React.FC = () => {
           <p className="text-[10px] text-zinc-400 font-medium">
             Representa el <span className="text-white font-bold">{pct}%</span> ({data.count} cobros)
           </p>
-        </div>
-      );
-    }
-    return null;
-  };
-
-  const CustomTooltipBar = ({ active, payload, label }: any) => {
-    if (active && payload && payload.length) {
-      const item = payload[0].payload;
-      return (
-        <div className="bg-zinc-950/95 border border-zinc-700/80 backdrop-blur-md p-3.5 rounded-xl shadow-2xl space-y-2 text-xs">
-          <p className="font-bold text-zinc-200 border-b border-zinc-800 pb-1 flex items-center gap-1.5">
-            <Calendar className="w-3.5 h-3.5 text-red-500" /> {item.fechaFormat}
-          </p>
-          <div className="space-y-1 font-mono">
-            {item.efectivo > 0 && (
-              <div className="flex justify-between gap-4 text-emerald-400">
-                <span>Efectivo:</span>
-                <span className="font-bold">${item.efectivo.toLocaleString('es-AR')}</span>
-              </div>
-            )}
-            {item.transferencia > 0 && (
-              <div className="flex justify-between gap-4 text-sky-400">
-                <span>Transferencia:</span>
-                <span className="font-bold">${item.transferencia.toLocaleString('es-AR')}</span>
-              </div>
-            )}
-            {item.tarjeta > 0 && (
-              <div className="flex justify-between gap-4 text-purple-400">
-                <span>Tarjeta:</span>
-                <span className="font-bold">${item.tarjeta.toLocaleString('es-AR')}</span>
-              </div>
-            )}
-            <div className="flex justify-between gap-4 text-white font-bold pt-1 border-t border-zinc-800">
-              <span>Total Día:</span>
-              <span>${item.total.toLocaleString('es-AR')}</span>
-            </div>
-          </div>
         </div>
       );
     }
@@ -355,30 +285,28 @@ export const StatsGimnasio: React.FC = () => {
         </div>
       </div>
 
-      {/* CONTENEDOR PRINCIPAL DEL GRÁFICO CIBERNÉTICO */}
+      {/* CONTENEDOR PRINCIPAL DEL GRÁFICO DONA Y TABLA */}
       <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 shadow-2xl relative overflow-hidden space-y-6">
         
-        {/* Top Controls del Gráfico */}
+        {/* Top Controls */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-zinc-800/80 pb-4">
           <div>
             <h4 className="text-base font-bold text-zinc-100 flex items-center gap-2">
               <Activity className="w-5 h-5 text-red-500" />
-              {tipoGrafico === 'dona' && 'Distribución de Ingresos por Método de Pago'}
-              {tipoGrafico === 'barras' && 'Evolución Temporal de Ingresos'}
-              {tipoGrafico === 'tabla' && 'Auditoría de Transacciones Registradas'}
+              {tipoGrafico === 'dona' ? 'Distribución de Ingresos por Método de Pago' : 'Auditoría de Transacciones Registradas'}
             </h4>
             <p className="text-xs text-zinc-400">
-              {periodo === 'mes' && 'Visualización interactiva del período mensual en curso'}
-              {periodo === 'dia' && 'Visualización interactiva correspondiente al día de hoy'}
-              {periodo === 'anio' && 'Visualización interactiva correspondiente al año en curso'}
+              {periodo === 'mes' && 'Visualización del período mensual en curso'}
+              {periodo === 'dia' && 'Visualización correspondiente al día de hoy'}
+              {periodo === 'anio' && 'Visualización correspondiente al año en curso'}
             </p>
           </div>
 
-          {/* Selector de tipo de visualización */}
+          {/* Selector de tipo de vista (Gráfico Dona vs Listado) */}
           <div className="flex items-center bg-zinc-950 p-1 rounded-xl border border-zinc-800 shrink-0">
             <button
               onClick={() => setTipoGrafico('dona')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5 ${
+              className={`px-4 py-2 rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5 ${
                 tipoGrafico === 'dona'
                   ? 'bg-red-600 text-white shadow-md shadow-red-600/30 font-bold'
                   : 'text-zinc-400 hover:text-zinc-200'
@@ -387,18 +315,8 @@ export const StatsGimnasio: React.FC = () => {
               <PieChartIcon className="w-3.5 h-3.5" /> Gráfico Dona
             </button>
             <button
-              onClick={() => setTipoGrafico('barras')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5 ${
-                tipoGrafico === 'barras'
-                  ? 'bg-red-600 text-white shadow-md shadow-red-600/30 font-bold'
-                  : 'text-zinc-400 hover:text-zinc-200'
-              }`}
-            >
-              <BarChart3 className="w-3.5 h-3.5" /> Evolución
-            </button>
-            <button
               onClick={() => setTipoGrafico('tabla')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5 ${
+              className={`px-4 py-2 rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5 ${
                 tipoGrafico === 'tabla'
                   ? 'bg-red-600 text-white shadow-md shadow-red-600/30 font-bold'
                   : 'text-zinc-400 hover:text-zinc-200'
@@ -409,7 +327,7 @@ export const StatsGimnasio: React.FC = () => {
           </div>
         </div>
 
-        {/* CONTENIDO SEGÚN TIPO DE GRÁFICO SELECCIONADO */}
+        {/* CONTENIDO SEGÚN TIPO DE VISTA */}
         <AnimatePresence mode="wait">
           {loading ? (
             <div className="py-12">
@@ -531,66 +449,6 @@ export const StatsGimnasio: React.FC = () => {
                       {totalIngresoBruto > 0 ? Math.round((totalTarjeta / totalIngresoBruto) * 100) : 0}%
                     </span>
                   </div>
-                </div>
-              </div>
-            </motion.div>
-          ) : tipoGrafico === 'barras' ? (
-            /* VISTA GRÁFICO DE BARRAS AGRUPADAS POR MÉTODO Y FECHA */
-            <motion.div
-              key="barras"
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
-              className="py-4 space-y-4"
-            >
-              {dataBarras.length === 0 ? (
-                <div className="py-12 text-center text-xs text-zinc-500 italic">
-                  No hay suficientes datos de transacciones registradas en este período para graficar la evolución.
-                </div>
-              ) : (
-                <div className="h-72 w-full">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart 
-                      data={dataBarras} 
-                      margin={{ top: 20, right: 20, left: 0, bottom: 20 }}
-                      barGap={6}
-                      barCategoryGap="20%"
-                    >
-                      <CartesianGrid strokeDasharray="3 3" stroke="#27272a" vertical={false} />
-                      <XAxis 
-                        dataKey="fechaFormat" 
-                        stroke="#71717a" 
-                        fontSize={11} 
-                        tickLine={false} 
-                      />
-                      <YAxis 
-                        stroke="#71717a" 
-                        fontSize={11} 
-                        tickLine={false} 
-                        tickFormatter={(val) => `$${val.toLocaleString('es-AR')}`} 
-                      />
-                      <Tooltip content={<CustomTooltipBar />} />
-                      <Bar dataKey="efectivo" name="Efectivo" fill="#10b981" radius={[6, 6, 0, 0]} maxBarSize={40} />
-                      <Bar dataKey="transferencia" name="Transferencia" fill="#38bdf8" radius={[6, 6, 0, 0]} maxBarSize={40} />
-                      <Bar dataKey="tarjeta" name="Tarjeta" fill="#a855f7" radius={[6, 6, 0, 0]} maxBarSize={40} />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-              )}
-
-              {/* Leyenda de colores de la barra */}
-              <div className="flex items-center justify-center gap-6 text-xs text-zinc-400 pt-2 border-t border-zinc-800/80">
-                <div className="flex items-center gap-2">
-                  <span className="w-3 h-3 rounded bg-emerald-500 shadow-[0_0_6px_#10b981]" />
-                  <span>Efectivo</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="w-3 h-3 rounded bg-sky-400 shadow-[0_0_6px_#38bdf8]" />
-                  <span>Transferencia / MP</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="w-3 h-3 rounded bg-purple-500 shadow-[0_0_6px_#a855f7]" />
-                  <span>Tarjeta</span>
                 </div>
               </div>
             </motion.div>
