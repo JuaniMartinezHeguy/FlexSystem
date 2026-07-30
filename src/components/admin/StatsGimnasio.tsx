@@ -535,7 +535,7 @@ export const StatsGimnasio: React.FC = () => {
               </div>
             </motion.div>
           ) : tipoGrafico === 'barras' ? (
-            /* VISTA GRÁFICO DE BARRAS APILADAS */
+            /* VISTA GRÁFICO DE BARRAS AGRUPADAS POR MÉTODO Y FECHA */
             <motion.div
               key="barras"
               initial={{ opacity: 0, y: 10 }}
@@ -550,7 +550,12 @@ export const StatsGimnasio: React.FC = () => {
               ) : (
                 <div className="h-72 w-full">
                   <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={dataBarras} margin={{ top: 20, right: 20, left: 0, bottom: 20 }}>
+                    <BarChart 
+                      data={dataBarras} 
+                      margin={{ top: 20, right: 20, left: 0, bottom: 20 }}
+                      barGap={6}
+                      barCategoryGap="20%"
+                    >
                       <CartesianGrid strokeDasharray="3 3" stroke="#27272a" vertical={false} />
                       <XAxis 
                         dataKey="fechaFormat" 
@@ -562,12 +567,12 @@ export const StatsGimnasio: React.FC = () => {
                         stroke="#71717a" 
                         fontSize={11} 
                         tickLine={false} 
-                        tickFormatter={(val) => `$${val}`} 
+                        tickFormatter={(val) => `$${val.toLocaleString('es-AR')}`} 
                       />
                       <Tooltip content={<CustomTooltipBar />} />
-                      <Bar dataKey="efectivo" name="Efectivo" stackId="a" fill="#10b981" radius={[0, 0, 4, 4]} />
-                      <Bar dataKey="transferencia" name="Transferencia" stackId="a" fill="#38bdf8" />
-                      <Bar dataKey="tarjeta" name="Tarjeta" stackId="a" fill="#a855f7" radius={[4, 4, 0, 0]} />
+                      <Bar dataKey="efectivo" name="Efectivo" fill="#10b981" radius={[6, 6, 0, 0]} maxBarSize={40} />
+                      <Bar dataKey="transferencia" name="Transferencia" fill="#38bdf8" radius={[6, 6, 0, 0]} maxBarSize={40} />
+                      <Bar dataKey="tarjeta" name="Tarjeta" fill="#a855f7" radius={[6, 6, 0, 0]} maxBarSize={40} />
                     </BarChart>
                   </ResponsiveContainer>
                 </div>
