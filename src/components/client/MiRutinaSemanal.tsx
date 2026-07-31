@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Plus, Trash2, Edit2, Dumbbell, Save, Check } from 'lucide-react';
+import { Plus, Trash2, Dumbbell, Save } from 'lucide-react';
 import { Input } from '../common/Input';
 import { Button } from '../common/Button';
 import { Modal } from '../common/Modal';
@@ -22,12 +22,11 @@ export const MiRutinaSemanal: React.FC = () => {
   const [tituloGrupo, setTituloGrupo] = useState('');
   const [loadingTitulo, setLoadingTitulo] = useState(false);
 
-  // Modal Crear Ejercicio
+  // Modal Crear Ejercicio (Sin pedir KG para reducir fricción al mínimo)
   const [modalEjOpen, setModalEjOpen] = useState(false);
   const [nombreEj, setNombreEj] = useState('');
   const [seriesEj, setSeriesEj] = useState(4);
   const [repsEj, setRepsEj] = useState('10-12');
-  const [pesoEj, setPesoEj] = useState(0);
   const [loadingEjSave, setLoadingEjSave] = useState(false);
 
   useEffect(() => {
@@ -125,7 +124,6 @@ export const MiRutinaSemanal: React.FC = () => {
     let targetRutinaId: string | undefined = rutina?.id;
 
     try {
-      // Si no existe rutina para este día, la creamos primero
       if (!targetRutinaId) {
         const groupTitle = tituloGrupo.trim() || `Entrenamiento ${activeDia}`;
         if (isSupabaseConfigured) {
@@ -163,7 +161,7 @@ export const MiRutinaSemanal: React.FC = () => {
           nombre: nombreEj.trim(),
           series: seriesEj,
           repeticiones: repsEj.trim(),
-          peso_kg: pesoEj,
+          peso_kg: 0,
           orden: ordenNext
         });
         if (error) throw error;
@@ -174,7 +172,7 @@ export const MiRutinaSemanal: React.FC = () => {
           nombre: nombreEj.trim(),
           series: seriesEj,
           repeticiones: repsEj.trim(),
-          peso_kg: pesoEj,
+          peso_kg: 0,
           orden: ordenNext
         };
         const allE = MockStore.getEjercicios(targetRutinaId);
@@ -185,7 +183,6 @@ export const MiRutinaSemanal: React.FC = () => {
       setNombreEj('');
       setSeriesEj(4);
       setRepsEj('10-12');
-      setPesoEj(0);
       await cargarRutinaDia(activeDia);
     } catch (err: any) {
       alert('Error agregando ejercicio: ' + err.message);
@@ -289,8 +286,8 @@ export const MiRutinaSemanal: React.FC = () => {
                   <div>
                     <h4 className="font-bold text-zinc-100 text-sm">{ej.nombre}</h4>
                     <p className="text-xs text-zinc-400">
-                      {ej.series} series × {ej.repeticiones} reps |{' '}
-                      <span className="font-mono text-red-400 font-bold">{ej.peso_kg} kg</span>
+                      <span className="text-zinc-200 font-semibold">{ej.series} series</span> ×{' '}
+                      <span className="text-zinc-200 font-semibold">{ej.repeticiones} reps</span>
                     </p>
                   </div>
                 </div>
@@ -307,7 +304,7 @@ export const MiRutinaSemanal: React.FC = () => {
         )}
       </div>
 
-      {/* Modal Crear Ejercicio */}
+      {/* Modal Crear Ejercicio (Simplificado sin fricción) */}
       <Modal
         isOpen={modalEjOpen}
         onClose={() => setModalEjOpen(false)}
@@ -316,13 +313,13 @@ export const MiRutinaSemanal: React.FC = () => {
         <form onSubmit={handleAgregarEjercicio} className="space-y-4">
           <Input
             label="Nombre del Ejercicio"
-            placeholder="Ej. Sentadillas con Barra"
+            placeholder="Ej. Press Plano o Sentadillas"
             value={nombreEj}
             onChange={(e) => setNombreEj(e.target.value)}
             required
           />
 
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-2 gap-4">
             <Input
               label="Series"
               type="number"
@@ -331,18 +328,10 @@ export const MiRutinaSemanal: React.FC = () => {
               required
             />
             <Input
-              label="Reps"
-              placeholder="10-12"
+              label="Repeticiones"
+              placeholder="Ej. 10-12 o Al fallo"
               value={repsEj}
               onChange={(e) => setRepsEj(e.target.value)}
-              required
-            />
-            <Input
-              label="Peso (kg)"
-              type="number"
-              step="0.5"
-              value={pesoEj}
-              onChange={(e) => setPesoEj(parseFloat(e.target.value) || 0)}
               required
             />
           </div>

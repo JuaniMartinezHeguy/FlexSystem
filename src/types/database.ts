@@ -65,7 +65,7 @@ export interface Ejercicio {
   nombre: string;
   series: number;
   repeticiones: string;
-  peso_kg: number;
+  peso_kg?: number;
   orden: number;
   creado_en?: string;
 }

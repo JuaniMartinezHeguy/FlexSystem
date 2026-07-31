@@ -4,18 +4,13 @@ import {
   CheckCircle2, 
   XCircle, 
   Dumbbell, 
-  Calendar, 
-  Clock, 
-  Award, 
-  ChevronRight,
-  TrendingUp,
-  Save
+  Award
 } from 'lucide-react';
 import { Button } from '../common/Button';
 import { Skeleton } from '../common/Skeleton';
 import { Badge } from '../common/Badge';
 import { useAuth } from '../../context/AuthContext';
-import { Rutina, Ejercicio, Asistencia } from '../../types/database';
+import { Rutina, Ejercicio } from '../../types/database';
 import { isSupabaseConfigured, supabase } from '../../lib/supabase';
 import { MockStore } from '../../lib/mockStore';
 import { 
@@ -39,8 +34,6 @@ export const HomeClient: React.FC = () => {
   // Rutina del día de hoy
   const [rutinaHoy, setRutinaHoy] = useState<Rutina | null>(null);
   const [ejercicios, setEjercicios] = useState<Ejercicio[]>([]);
-  const [pesosEditables, setPesosEditables] = useState<{ [ejercicioId: string]: number }>({});
-  const [guardandoPesoId, setGuardandoPesoId] = useState<string | null>(null);
 
   const hoyStr = getTodayART();
   const diaSemanaHoy = getTodayDayOfWeekART();
@@ -83,9 +76,6 @@ export const HomeClient: React.FC = () => {
         setRutinaHoy(r);
         const ejs = (r.ejercicios || []).sort((a, b) => a.orden - b.orden);
         setEjercicios(ejs);
-        const pesosMap: { [id: string]: number } = {};
-        ejs.forEach(e => { pesosMap[e.id] = e.peso_kg; });
-        setPesosEditables(pesosMap);
       }
     } else {
       // Modo Mock
@@ -103,9 +93,6 @@ export const HomeClient: React.FC = () => {
           setRutinaHoy(r);
           const ejs = MockStore.getEjercicios(r.id).sort((a, b) => a.orden - b.orden);
           setEjercicios(ejs);
-          const pesosMap: { [id: string]: number } = {};
-          ejs.forEach(e => { pesosMap[e.id] = e.peso_kg; });
-          setPesosEditables(pesosMap);
         }
       }
     }
@@ -148,32 +135,6 @@ export const HomeClient: React.FC = () => {
       alert('Error registrando asistencia: ' + err.message);
     } finally {
       setLoadingAsistencia(false);
-    }
-  };
-
-  // Guardar peso editable de ejercicio
-  const handleGuardarPeso = async (ejercicioId: string) => {
-    const nuevoPeso = pesosEditables[ejercicioId];
-    if (nuevoPeso === undefined || isNaN(nuevoPeso)) return;
-
-    setGuardandoPesoId(ejercicioId);
-    try {
-      if (isSupabaseConfigured) {
-        await supabase.from('ejercicios').update({ peso_kg: nuevoPeso }).eq('id', ejercicioId);
-      } else {
-        if (rutinaHoy) {
-          const ejs = MockStore.getEjercicios(rutinaHoy.id);
-          const idx = ejs.findIndex(e => e.id === ejercicioId);
-          if (idx >= 0) {
-            ejs[idx].peso_kg = nuevoPeso;
-            MockStore.saveEjercicios(ejs);
-          }
-        }
-      }
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setGuardandoPesoId(null);
     }
   };
 
@@ -298,12 +259,15 @@ export const HomeClient: React.FC = () => {
               <Badge variant="neutral">{ejercicios.length} ejercicios</Badge>
             </div>
 
-            {ejercicios.map((ej) => (
+            {ejercicios.map((ej, index) => (
               <div
                 key={ej.id}
-                className="bg-zinc-900 border border-zinc-800 p-4 rounded-2xl space-y-3 shadow-md hover:border-zinc-700 transition-colors"
+                className="bg-zinc-900 border border-zinc-800 p-4 rounded-2xl flex items-center justify-between shadow-md hover:border-zinc-700 transition-colors"
               >
-                <div className="flex items-start justify-between">
+                <div className="flex items-center gap-3">
+                  <span className="w-8 h-8 rounded-xl bg-zinc-950 border border-zinc-800 text-red-500 font-mono text-xs font-bold flex items-center justify-center shrink-0">
+                    {index + 1}
+                  </span>
                   <div>
                     <h4 className="font-bold text-zinc-100 text-sm">{ej.nombre}</h4>
                     <p className="text-xs text-zinc-400 mt-0.5">
@@ -311,20 +275,11 @@ export const HomeClient: React.FC = () => {
                       <span className="text-zinc-200 font-semibold">{ej.repeticiones} reps</span>
                     </p>
                   </div>
-
-                  {/* Carga editable en tiempo real */}
-                  <div className="flex items-center gap-1.5 bg-zinc-950 border border-zinc-800 px-3 py-1.5 rounded-xl">
-                    <input
-                      type="number"
-                      step="0.5"
-                      value={pesosEditables[ej.id] ?? ej.peso_kg}
-                      onChange={(e) => setPesosEditables({ ...pesosEditables, [ej.id]: parseFloat(e.target.value) || 0 })}
-                      onBlur={() => handleGuardarPeso(ej.id)}
-                      className="w-12 bg-transparent text-right font-mono font-bold text-red-400 text-sm focus:outline-none"
-                    />
-                    <span className="text-xs text-zinc-500 font-bold">kg</span>
-                  </div>
                 </div>
+
+                <Badge variant="neutral" className="text-[11px] font-semibold text-zinc-300">
+                  {ej.series}×{ej.repeticiones}
+                </Badge>
               </div>
             ))}
           </div>

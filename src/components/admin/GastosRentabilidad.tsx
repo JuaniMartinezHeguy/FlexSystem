@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { DollarSign, Plus, Trash2, PieChart, TrendingUp, TrendingDown, Layers } from 'lucide-react';
+import { DollarSign, Plus, Trash2, PieChart, TrendingUp, TrendingDown, Layers, Calendar, Zap } from 'lucide-react';
 import { Input } from '../common/Input';
 import { Button } from '../common/Button';
 import { Badge } from '../common/Badge';
@@ -9,7 +9,34 @@ import { isSupabaseConfigured, supabase } from '../../lib/supabase';
 import { MockStore } from '../../lib/mockStore';
 import { getTodayART, formatDateART } from '../../lib/dateUtils';
 
+type ModoFiltro = 'mes' | 'anio';
+
+const MESES = [
+  { value: '01', label: 'Enero' },
+  { value: '02', label: 'Febrero' },
+  { value: '03', label: 'Marzo' },
+  { value: '04', label: 'Abril' },
+  { value: '05', label: 'Mayo' },
+  { value: '06', label: 'Junio' },
+  { value: '07', label: 'Julio' },
+  { value: '08', label: 'Agosto' },
+  { value: '09', label: 'Septiembre' },
+  { value: '10', label: 'Octubre' },
+  { value: '11', label: 'Noviembre' },
+  { value: '12', label: 'Diciembre' },
+];
+
+const ANIOS_DISPONIBLES = Array.from({ length: 10 }, (_, i) => 2026 + i);
+
 export const GastosRentabilidad: React.FC = () => {
+  const hoyStr = getTodayART(); // YYYY-MM-DD
+  const [anioActualStr, mesActualStr] = hoyStr.split('-');
+
+  // Estado del Filtro de Período (Mes / Año a partir de 2026)
+  const [modoFiltro, setModoFiltro] = useState<ModoFiltro>('mes');
+  const [selectedMes, setSelectedMes] = useState<string>(mesActualStr);
+  const [selectedAnio, setSelectedAnio] = useState<number>(Math.max(2026, parseInt(anioActualStr) || 2026));
+
   const [gastos, setGastos] = useState<Gasto[]>([]);
   const [suscripciones, setSuscripciones] = useState<Suscripcion[]>([]);
   const [loading, setLoading] = useState(true);
@@ -96,35 +123,162 @@ export const GastosRentabilidad: React.FC = () => {
     await cargarDatos();
   };
 
-  // Cálculos de Ganancia Neta y Totales
-  const totalIngresoBruto = suscripciones.reduce((acc, curr) => acc + (Number(curr.monto_pagado) || 0), 0);
-  const totalGastos = gastos.reduce((acc, curr) => acc + (Number(curr.monto) || 0), 0);
+  // Filtrar suscripciones según Mes y/o Año seleccionados
+  const subsFiltradas = suscripciones.filter(s => {
+    const fechaCobro = s.fecha_inicio || s.creado_en?.substring(0, 10) || '';
+    if (!fechaCobro) return false;
+
+    const [anioStr, mesStr] = fechaCobro.split('-');
+
+    if (modoFiltro === 'mes') {
+      return anioStr === String(selectedAnio) && mesStr === selectedMes;
+    }
+    if (modoFiltro === 'anio') {
+      return anioStr === String(selectedAnio);
+    }
+    return true;
+  });
+
+  // Filtrar gastos según Mes y/o Año seleccionados
+  const gastosFiltrados = gastos.filter(g => {
+    const fechaGasto = g.fecha || g.creado_en?.substring(0, 10) || '';
+    if (!fechaGasto) return false;
+
+    const [anioStr, mesStr] = fechaGasto.split('-');
+
+    if (modoFiltro === 'mes') {
+      return anioStr === String(selectedAnio) && mesStr === selectedMes;
+    }
+    if (modoFiltro === 'anio') {
+      return anioStr === String(selectedAnio);
+    }
+    return true;
+  });
+
+  // Cálculos de Ganancia Neta y Totales para el Período Seleccionado
+  const totalIngresoBruto = subsFiltradas.reduce((acc, curr) => acc + (Number(curr.monto_pagado) || 0), 0);
+  const totalGastos = gastosFiltrados.reduce((acc, curr) => acc + (Number(curr.monto) || 0), 0);
   const gananciaNeta = totalIngresoBruto - totalGastos;
+
+  // Etiqueta del período seleccionado
+  const nombreMesSeleccionado = MESES.find(m => m.value === selectedMes)?.label || '';
+  const etiquetaPeriodo = modoFiltro === 'mes'
+    ? `${nombreMesSeleccionado} ${selectedAnio}`
+    : `Año Completo ${selectedAnio}`;
 
   return (
     <div className="space-y-8">
-      {/* Resumen Rentabilidad Neta */}
+      {/* Header Con Selector de Mes y Año */}
+      <div className="bg-zinc-900 border border-zinc-800 p-4 rounded-2xl flex flex-col lg:flex-row lg:items-center justify-between gap-4 shadow-xl">
+        <div className="flex items-center gap-3">
+          <div className="p-2.5 bg-red-600/10 border border-red-500/20 rounded-xl text-red-500 shadow-inner">
+            <DollarSign className="w-5 h-5" />
+          </div>
+          <div>
+            <h3 className="text-base font-bold text-zinc-100 flex items-center gap-2">
+              Gastos & Rentabilidad
+              <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-red-950/60 text-red-400 border border-red-800/60 flex items-center gap-1">
+                <Zap className="w-3 h-3" /> Balance Financiero
+              </span>
+            </h3>
+            <p className="text-xs text-zinc-400">
+              Período evaluado: <span className="text-zinc-200 font-bold">{etiquetaPeriodo}</span>
+            </p>
+          </div>
+        </div>
+
+        {/* Selector Dinámico de Mes y Año (a partir de 2026) */}
+        <div className="flex flex-wrap items-center gap-2.5 bg-zinc-950 p-2 rounded-xl border border-zinc-800 self-start lg:self-auto">
+          {/* Switch Modo: Mes / Año */}
+          <div className="flex items-center bg-zinc-900 p-1 rounded-lg border border-zinc-800">
+            <button
+              onClick={() => setModoFiltro('mes')}
+              className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-all ${
+                modoFiltro === 'mes'
+                  ? 'bg-red-600 text-white shadow-md shadow-red-600/20 font-bold'
+                  : 'text-zinc-400 hover:text-zinc-200'
+              }`}
+            >
+              Por Mes
+            </button>
+            <button
+              onClick={() => setModoFiltro('anio')}
+              className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-all ${
+                modoFiltro === 'anio'
+                  ? 'bg-red-600 text-white shadow-md shadow-red-600/20 font-bold'
+                  : 'text-zinc-400 hover:text-zinc-200'
+              }`}
+            >
+              Por Año
+            </button>
+          </div>
+
+          {/* Desplegable Mes (Sólo si modo === 'mes') */}
+          {modoFiltro === 'mes' && (
+            <select
+              value={selectedMes}
+              onChange={(e) => setSelectedMes(e.target.value)}
+              className="bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-1.5 text-xs font-bold text-zinc-100 focus:outline-none focus:border-red-500"
+            >
+              {MESES.map(m => (
+                <option key={m.value} value={m.value}>
+                  {m.label}
+                </option>
+              ))}
+            </select>
+          )}
+
+          {/* Desplegable Año (A partir de 2026) */}
+          <select
+            value={selectedAnio}
+            onChange={(e) => setSelectedAnio(parseInt(e.target.value) || 2026)}
+            className="bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-1.5 text-xs font-bold text-zinc-100 font-mono focus:outline-none focus:border-red-500"
+          >
+            {ANIOS_DISPONIBLES.map(a => (
+              <option key={a} value={a}>
+                {a}
+              </option>
+            ))}
+          </select>
+        </div>
+      </div>
+
+      {/* Resumen Rentabilidad Neta del Período */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
         {/* Ingreso Bruto */}
         <div className="bg-zinc-900 border border-zinc-800 p-6 rounded-2xl shadow-xl">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-xs font-semibold uppercase text-zinc-400">Ingresos Totales</span>
+            <span className="text-xs font-semibold uppercase text-zinc-400">Ingresos ({etiquetaPeriodo})</span>
             <TrendingUp className="w-5 h-5 text-emerald-400" />
           </div>
-          <p className="text-2xl font-extrabold text-emerald-400 font-mono">
-            +${totalIngresoBruto.toLocaleString('es-AR')}
-          </p>
+          {loading ? (
+            <Skeleton className="h-8 w-3/4" />
+          ) : (
+            <div>
+              <p className="text-2xl font-extrabold text-emerald-400 font-mono">
+                +${totalIngresoBruto.toLocaleString('es-AR')}
+              </p>
+              <p className="text-[11px] text-zinc-500 mt-1">{subsFiltradas.length} cobros registrados</p>
+            </div>
+          )}
         </div>
 
         {/* Gastos Totales */}
         <div className="bg-zinc-900 border border-zinc-800 p-6 rounded-2xl shadow-xl">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-xs font-semibold uppercase text-zinc-400">Gastos Totales</span>
+            <span className="text-xs font-semibold uppercase text-zinc-400">Gastos ({etiquetaPeriodo})</span>
             <TrendingDown className="w-5 h-5 text-red-400" />
           </div>
-          <p className="text-2xl font-extrabold text-red-400 font-mono">
-            -${totalGastos.toLocaleString('es-AR')}
-          </p>
+          {loading ? (
+            <Skeleton className="h-8 w-3/4" />
+          ) : (
+            <div>
+              <p className="text-2xl font-extrabold text-red-400 font-mono">
+                -${totalGastos.toLocaleString('es-AR')}
+              </p>
+              <p className="text-[11px] text-zinc-500 mt-1">{gastosFiltrados.length} gastos en este período</p>
+            </div>
+          )}
         </div>
 
         {/* Ganancia Neta */}
@@ -133,9 +287,18 @@ export const GastosRentabilidad: React.FC = () => {
             <span className="text-xs font-bold uppercase text-red-400">Ganancia Neta</span>
             <DollarSign className="w-5 h-5 text-red-500" />
           </div>
-          <p className={`text-2xl font-black font-mono ${gananciaNeta >= 0 ? 'text-zinc-100' : 'text-red-500'}`}>
-            ${gananciaNeta.toLocaleString('es-AR')}
-          </p>
+          {loading ? (
+            <Skeleton className="h-8 w-3/4" />
+          ) : (
+            <div>
+              <p className={`text-2xl font-black font-mono ${gananciaNeta >= 0 ? 'text-zinc-100' : 'text-red-500'}`}>
+                ${gananciaNeta.toLocaleString('es-AR')}
+              </p>
+              <p className="text-[11px] text-zinc-400 mt-1 font-medium">
+                {gananciaNeta >= 0 ? 'Balance Positivo' : 'Déficit en este período'}
+              </p>
+            </div>
+          )}
         </div>
       </div>
 
@@ -207,19 +370,24 @@ export const GastosRentabilidad: React.FC = () => {
           </form>
         </div>
 
-        {/* Listado de Gastos Registrados */}
+        {/* Listado de Gastos Registrados en el Período */}
         <div className="lg:col-span-7 bg-zinc-900 border border-zinc-800 p-6 rounded-2xl shadow-xl">
-          <h3 className="text-base font-bold text-zinc-100 mb-4 flex items-center gap-2">
-            <PieChart className="w-5 h-5 text-red-500" /> Registro de Gastos
+          <h3 className="text-base font-bold text-zinc-100 mb-1 flex items-center gap-2">
+            <PieChart className="w-5 h-5 text-red-500" /> Registro de Gastos ({etiquetaPeriodo})
           </h3>
+          <p className="text-xs text-zinc-400 mb-4">
+            Mostrando únicamente los gastos registrados en <span className="text-zinc-200 font-bold">{etiquetaPeriodo}</span>
+          </p>
 
           {loading ? (
             <Skeleton count={3} className="h-10 mb-2" />
-          ) : gastos.length === 0 ? (
-            <p className="text-xs text-zinc-500 italic py-8 text-center">No hay gastos registrados aún.</p>
+          ) : gastosFiltrados.length === 0 ? (
+            <p className="text-xs text-zinc-500 italic py-8 text-center">
+              No hay gastos registrados en {etiquetaPeriodo}.
+            </p>
           ) : (
             <div className="space-y-3 max-h-96 overflow-y-auto pr-1">
-              {gastos.map((g) => (
+              {gastosFiltrados.map((g) => (
                 <div
                   key={g.id}
                   className="bg-zinc-950 border border-zinc-800 p-4 rounded-xl flex items-center justify-between hover:border-zinc-700 transition-colors text-xs"

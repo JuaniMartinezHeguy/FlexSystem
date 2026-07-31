@@ -135,7 +135,6 @@ CREATE TABLE IF NOT EXISTS public.ejercicios (
     nombre TEXT NOT NULL,
     series INT NOT NULL DEFAULT 4 CHECK (series > 0),
     repeticiones TEXT NOT NULL DEFAULT '10-12',
-    peso_kg DECIMAL(6,2) DEFAULT 0 CHECK (peso_kg >= 0),
     orden INT DEFAULT 0,
     creado_en TIMESTAMPTZ DEFAULT NOW()
 );
