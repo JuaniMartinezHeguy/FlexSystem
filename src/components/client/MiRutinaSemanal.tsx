@@ -6,7 +6,7 @@ import { Modal } from '../common/Modal';
 import { Skeleton } from '../common/Skeleton';
 import { useAuth } from '../../context/AuthContext';
 import { DiaSemana, Rutina, Ejercicio } from '../../types/database';
-import { isSupabaseConfigured, supabase, supabaseAdmin } from '../../lib/supabase';
+import { isSupabaseConfigured, supabaseAdmin } from '../../lib/supabase';
 import { MockStore } from '../../lib/mockStore';
 import { useToast } from '../../context/ToastContext';
 
