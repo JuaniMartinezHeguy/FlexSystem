@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Lock, MessageCircle, RefreshCw, LogOut, ShieldAlert } from 'lucide-react';
 import { Button } from '../common/Button';
 import { useAuth } from '../../context/AuthContext';
-import { isSupabaseConfigured, supabase } from '../../lib/supabase';
+import { isSupabaseConfigured, supabase, supabaseAdmin } from '../../lib/supabase';
 import { MockStore } from '../../lib/mockStore';
 import { formatDateART } from '../../lib/dateUtils';
 
@@ -103,7 +103,7 @@ export const PaywallVencido: React.FC = () => {
         </div>
 
         <p className="text-[10px] text-zinc-500">
-          ⚡ Esta pantalla se desbloqueará en tiempo real automáticamente apenas recepción registre tu pago.
+          Esta pantalla se desbloqueará en tiempo real automáticamente apenas recepción registre tu pago.
         </p>
       </div>
 

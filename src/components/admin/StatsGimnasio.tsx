@@ -20,7 +20,7 @@ import {
 } from 'recharts';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Suscripcion } from '../../types/database';
-import { isSupabaseConfigured, supabase } from '../../lib/supabase';
+import { isSupabaseConfigured, supabase, supabaseAdmin } from '../../lib/supabase';
 import { MockStore } from '../../lib/mockStore';
 import { getTodayART, formatDateART } from '../../lib/dateUtils';
 import { Skeleton } from '../common/Skeleton';
@@ -64,7 +64,7 @@ export const StatsGimnasio: React.FC = () => {
   const cargarStats = async () => {
     setLoading(true);
     if (isSupabaseConfigured) {
-      const { data } = await supabase
+      const { data } = await supabaseAdmin
         .from('suscripciones')
         .select('*, plan:planes(*)')
         .order('creado_en', { ascending: false });

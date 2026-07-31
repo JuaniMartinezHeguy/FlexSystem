@@ -3,7 +3,7 @@ import { Calendar as CalendarIcon, Award, CheckCircle2, AlertCircle, Percent } f
 import { Skeleton } from '../common/Skeleton';
 import { useAuth } from '../../context/AuthContext';
 import { Asistencia } from '../../types/database';
-import { isSupabaseConfigured, supabase } from '../../lib/supabase';
+import { isSupabaseConfigured, supabase, supabaseAdmin } from '../../lib/supabase';
 import { MockStore } from '../../lib/mockStore';
 import { getTodayART, isSundayART } from '../../lib/dateUtils';
 

@@ -7,7 +7,7 @@ import { Skeleton } from '../common/Skeleton';
 import { DetalleAlumnoModal } from './DetalleAlumnoModal';
 import { Modal } from '../common/Modal';
 import { Usuario, Suscripcion, Plan, MedioPago } from '../../types/database';
-import { isSupabaseConfigured, supabase } from '../../lib/supabase';
+import { isSupabaseConfigured, supabase, supabaseAdmin } from '../../lib/supabase';
 import { MockStore } from '../../lib/mockStore';
 import { getTodayART, getDaysRemaining, isSubscriptionExpired, formatDateART, calculateNewExpirationDate } from '../../lib/dateUtils';
 import { useToast } from '../../context/ToastContext';
@@ -47,10 +47,10 @@ export const TablaAlumnos: React.FC = () => {
     setLoading(true);
     if (isSupabaseConfigured) {
       const [usersRes, subsRes, planesRes, configRes] = await Promise.all([
-        supabase.from('usuarios').select('*').eq('rol', 'cliente').order('nombre'),
-        supabase.from('suscripciones').select('*, plan:planes(*)').order('creado_en', { ascending: false }),
-        supabase.from('planes').select('*').eq('activo', true),
-        supabase.from('configuracion').select('*').eq('clave', 'whatsapp_recepcion').maybeSingle()
+        supabaseAdmin.from('usuarios').select('*').eq('rol', 'cliente').order('nombre'),
+        supabaseAdmin.from('suscripciones').select('*, plan:planes(*)').order('creado_en', { ascending: false }),
+        supabaseAdmin.from('planes').select('*').eq('activo', true),
+        supabaseAdmin.from('configuracion').select('*').eq('clave', 'whatsapp_recepcion').maybeSingle()
       ]);
 
       if (configRes.data) {
@@ -148,7 +148,7 @@ export const TablaAlumnos: React.FC = () => {
 
     try {
       if (isSupabaseConfigured) {
-        const { error } = await supabase.from('suscripciones').insert({
+        const { error } = await supabaseAdmin.from('suscripciones').insert({
           usuario_id: modalCobroAlumno.id,
           plan_id: cobroPlanId,
           monto_pagado: precio,
@@ -272,7 +272,15 @@ export const TablaAlumnos: React.FC = () => {
 
                     <td className="p-4 font-mono">
                       {alumno.ultimaSub ? (
-                        <div className={`font-semibold ${alumno.estaVencido ? 'text-red-400 font-bold' : 'text-emerald-400'}`}>
+                        <div
+                          className={`font-semibold ${
+                            alumno.estaVencido
+                              ? 'text-red-400 font-bold'
+                              : alumno.diasRestantes <= 5
+                              ? 'text-amber-400 font-bold'
+                              : 'text-emerald-400'
+                          }`}
+                        >
                           {alumno.estaVencido
                             ? `Vencido hace ${Math.abs(alumno.diasRestantes)} ${Math.abs(alumno.diasRestantes) === 1 ? 'día' : 'días'}`
                             : `Quedan ${alumno.diasRestantes} ${alumno.diasRestantes === 1 ? 'día' : 'días'}`}
@@ -285,21 +293,14 @@ export const TablaAlumnos: React.FC = () => {
                     <td className="p-4">
                       {alumno.estaVencido ? (
                         <Badge variant="danger">Vencida</Badge>
+                      ) : alumno.diasRestantes <= 5 ? (
+                        <Badge variant="warning">Por Vencer</Badge>
                       ) : (
                         <Badge variant="success">Al Día</Badge>
                       )}
                     </td>
 
                     <td className="p-4 text-right space-x-2">
-                      <button
-                        onClick={() => handleOpenWhatsApp(alumno)}
-                        title="Enviar mensaje por WhatsApp"
-                        className="p-2 text-emerald-400 hover:bg-emerald-950/60 rounded-xl transition-colors border border-emerald-800/40 inline-flex items-center gap-1 font-semibold text-[11px]"
-                      >
-                        <MessageCircle className="w-4 h-4" />
-                        <span className="hidden sm:inline">WhatsApp</span>
-                      </button>
-
                       <button
                         onClick={() => setModalCobroAlumno(alumno)}
                         title="Cobrar / Renovar Cuota"

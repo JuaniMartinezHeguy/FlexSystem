@@ -386,7 +386,7 @@ export const ConfigPlanes: React.FC = () => {
               onChange={(e) => setMetaDiasSemana(e.target.value)}
               className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2.5 text-sm text-zinc-100"
             >
-              <option value="libre">✨ Pase Libre (Sin meta estricta)</option>
+              <option value="libre">Pase Libre</option>
               <option value="1">1 Día por semana</option>
               <option value="2">2 Días por semana</option>
               <option value="3">3 Días por semana</option>

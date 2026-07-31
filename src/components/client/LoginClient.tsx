@@ -166,7 +166,7 @@ export const LoginClient: React.FC<LoginClientProps> = ({ onSwitchToAdmin }) => 
 
         {/* Demo Quick Hints */}
         <div className="bg-zinc-900/40 border border-zinc-800/60 p-4 rounded-2xl text-[11px] text-zinc-400 space-y-1 text-center">
-          <p className="font-bold text-zinc-300">💡 Credenciales para Pruebas Demo:</p>
+          <p className="font-bold text-zinc-300">Credenciales para Pruebas Demo:</p>
           <p>Socio Al Día: DNI <span className="font-mono text-zinc-200 font-bold">40123456</span> | Clave: <span className="font-mono text-zinc-200 font-bold">40123456</span></p>
           <p>Socio Vencido: DNI <span className="font-mono text-zinc-200 font-bold">38999888</span> | Clave: <span className="font-mono text-zinc-200 font-bold">38999888</span></p>
           <p>Admin: DNI <span className="font-mono text-zinc-200 font-bold">11111111</span> | Clave: <span className="font-mono text-zinc-200 font-bold">admin123</span></p>

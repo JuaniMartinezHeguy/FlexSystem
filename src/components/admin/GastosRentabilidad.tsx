@@ -5,7 +5,7 @@ import { Button } from '../common/Button';
 import { Badge } from '../common/Badge';
 import { Skeleton } from '../common/Skeleton';
 import { Gasto, CategoriaGasto, Suscripcion } from '../../types/database';
-import { isSupabaseConfigured, supabase } from '../../lib/supabase';
+import { isSupabaseConfigured, supabase, supabaseAdmin } from '../../lib/supabase';
 import { MockStore } from '../../lib/mockStore';
 import { getTodayART, formatDateART } from '../../lib/dateUtils';
 import { useToast } from '../../context/ToastContext';
@@ -58,8 +58,8 @@ export const GastosRentabilidad: React.FC = () => {
     setLoading(true);
     if (isSupabaseConfigured) {
       const [gastosRes, subsRes] = await Promise.all([
-        supabase.from('gastos').select('*').order('fecha', { ascending: false }),
-        supabase.from('suscripciones').select('*')
+        supabaseAdmin.from('gastos').select('*').order('fecha', { ascending: false }),
+        supabaseAdmin.from('suscripciones').select('*')
       ]);
       if (gastosRes.data) setGastos(gastosRes.data as Gasto[]);
       if (subsRes.data) setSuscripciones(subsRes.data as Suscripcion[]);
@@ -83,7 +83,7 @@ export const GastosRentabilidad: React.FC = () => {
 
     try {
       if (isSupabaseConfigured) {
-        const { error } = await supabase.from('gastos').insert({
+        const { error } = await supabaseAdmin.from('gastos').insert({
           concepto: concepto.trim(),
           categoria,
           monto: numMonto,
@@ -120,7 +120,7 @@ export const GastosRentabilidad: React.FC = () => {
     if (!confirm('¿Desea eliminar este gasto?')) return;
     try {
       if (isSupabaseConfigured) {
-        await supabase.from('gastos').delete().eq('id', id);
+        await supabaseAdmin.from('gastos').delete().eq('id', id);
       } else {
         MockStore.saveGastos(MockStore.getGastos().filter(g => g.id !== id));
       }

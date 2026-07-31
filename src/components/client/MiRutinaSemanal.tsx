@@ -1,12 +1,12 @@
 import React, { useEffect, useState } from 'react';
-import { Plus, Trash2, Dumbbell, Save } from 'lucide-react';
+import { Plus, Trash2, Dumbbell, Save, Pencil } from 'lucide-react';
 import { Input } from '../common/Input';
 import { Button } from '../common/Button';
 import { Modal } from '../common/Modal';
 import { Skeleton } from '../common/Skeleton';
 import { useAuth } from '../../context/AuthContext';
 import { DiaSemana, Rutina, Ejercicio } from '../../types/database';
-import { isSupabaseConfigured, supabase } from '../../lib/supabase';
+import { isSupabaseConfigured, supabase, supabaseAdmin } from '../../lib/supabase';
 import { MockStore } from '../../lib/mockStore';
 import { useToast } from '../../context/ToastContext';
 
@@ -24,10 +24,11 @@ export const MiRutinaSemanal: React.FC = () => {
   const [tituloGrupo, setTituloGrupo] = useState('');
   const [loadingTitulo, setLoadingTitulo] = useState(false);
 
-  // Modal Crear Ejercicio (Sin pedir KG para reducir fricción al mínimo)
+  // Modal Crear / Editar Ejercicio
   const [modalEjOpen, setModalEjOpen] = useState(false);
+  const [editingEj, setEditingEj] = useState<Ejercicio | null>(null);
   const [nombreEj, setNombreEj] = useState('');
-  const [seriesEj, setSeriesEj] = useState(4);
+  const [seriesEj, setSeriesEj] = useState('3');
   const [repsEj, setRepsEj] = useState('10-12');
   const [loadingEjSave, setLoadingEjSave] = useState(false);
 
@@ -42,7 +43,7 @@ export const MiRutinaSemanal: React.FC = () => {
     setLoading(true);
 
     if (isSupabaseConfigured) {
-      const { data: rData } = await supabase
+      const { data: rData } = await supabaseAdmin
         .from('rutinas')
         .select('*, ejercicios(*)')
         .eq('usuario_id', user.id)
@@ -83,9 +84,9 @@ export const MiRutinaSemanal: React.FC = () => {
     try {
       if (isSupabaseConfigured) {
         if (rutina) {
-          await supabase.from('rutinas').update({ titulo_grupo: tituloGrupo.trim() }).eq('id', rutina.id);
+          await supabaseAdmin.from('rutinas').update({ titulo_grupo: tituloGrupo.trim() }).eq('id', rutina.id);
         } else {
-          const { data } = await supabase.from('rutinas').insert({
+          const { data } = await supabaseAdmin.from('rutinas').insert({
             usuario_id: user.id,
             dia_semana: activeDia,
             titulo_grupo: tituloGrupo.trim()
@@ -119,75 +120,119 @@ export const MiRutinaSemanal: React.FC = () => {
     }
   };
 
+  const handleAbrirCrear = () => {
+    setEditingEj(null);
+    setNombreEj('');
+    setSeriesEj('3');
+    setRepsEj('10-12');
+    setModalEjOpen(true);
+  };
+
+  const handleAbrirEditar = (ej: Ejercicio) => {
+    setEditingEj(ej);
+    setNombreEj(ej.nombre);
+    setSeriesEj(String(ej.series));
+    setRepsEj(ej.repeticiones);
+    setModalEjOpen(true);
+  };
+
   const handleAgregarEjercicio = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!nombreEj.trim()) return;
+    const seriesNum = parseInt(seriesEj) || 3;
 
     setLoadingEjSave(true);
     let targetRutinaId: string | undefined = rutina?.id;
 
     try {
-      if (!targetRutinaId) {
-        const groupTitle = tituloGrupo.trim() || `Entrenamiento ${activeDia}`;
+      if (editingEj) {
+        // Edición de ejercicio existente
         if (isSupabaseConfigured) {
-          const { data, error } = await supabase.from('rutinas').insert({
-            usuario_id: user!.id,
-            dia_semana: activeDia,
-            titulo_grupo: groupTitle
-          }).select().single();
+          const { error } = await supabaseAdmin.from('ejercicios').update({
+            nombre: nombreEj.trim(),
+            series: seriesNum,
+            repeticiones: repsEj.trim()
+          }).eq('id', editingEj.id);
           if (error) throw error;
-          targetRutinaId = data.id;
-          setRutina(data as Rutina);
         } else {
-          const newR: Rutina = {
-            id: `r-${Date.now()}`,
-            usuario_id: user!.id,
-            dia_semana: activeDia,
-            titulo_grupo: groupTitle
-          };
-          const allR = MockStore.getRutinas(user!.id);
-          MockStore.saveRutinas([...allR, newR]);
-          targetRutinaId = newR.id;
-          setRutina(newR);
+          if (targetRutinaId) {
+            const allE = MockStore.getEjercicios(targetRutinaId);
+            const idx = allE.findIndex(x => x.id === editingEj.id);
+            if (idx >= 0) {
+              allE[idx].nombre = nombreEj.trim();
+              allE[idx].series = seriesNum;
+              allE[idx].repeticiones = repsEj.trim();
+              MockStore.saveEjercicios(allE);
+            }
+          }
         }
-      }
-
-      if (!targetRutinaId) {
-        throw new Error('No se pudo inicializar la rutina.');
-      }
-
-      const ordenNext = ejercicios.length + 1;
-
-      if (isSupabaseConfigured) {
-        const { error } = await supabase.from('ejercicios').insert({
-          rutina_id: targetRutinaId,
-          nombre: nombreEj.trim(),
-          series: seriesEj,
-          repeticiones: repsEj.trim(),
-          orden: ordenNext
-        });
-        if (error) throw error;
+        showToast('Ejercicio Actualizado', `"${nombreEj.trim()}" (${seriesNum}x${repsEj.trim()})`, 'success');
       } else {
-        const newEj: Ejercicio = {
-          id: `e-${Date.now()}`,
-          rutina_id: targetRutinaId,
-          nombre: nombreEj.trim(),
-          series: seriesEj,
-          repeticiones: repsEj.trim(),
-          orden: ordenNext
-        };
-        const allE = MockStore.getEjercicios(targetRutinaId);
-        MockStore.saveEjercicios([...allE, newEj]);
+        // Creación de ejercicio nuevo
+        if (!targetRutinaId) {
+          const groupTitle = tituloGrupo.trim() || `Entrenamiento ${activeDia}`;
+          if (isSupabaseConfigured) {
+            const { data, error } = await supabaseAdmin.from('rutinas').insert({
+              usuario_id: user!.id,
+              dia_semana: activeDia,
+              titulo_grupo: groupTitle
+            }).select().single();
+            if (error) throw error;
+            targetRutinaId = data.id;
+            setRutina(data as Rutina);
+          } else {
+            const newR: Rutina = {
+              id: `r-${Date.now()}`,
+              usuario_id: user!.id,
+              dia_semana: activeDia,
+              titulo_grupo: groupTitle
+            };
+            const allR = MockStore.getRutinas(user!.id);
+            MockStore.saveRutinas([...allR, newR]);
+            targetRutinaId = newR.id;
+            setRutina(newR);
+          }
+        }
+
+        if (!targetRutinaId) {
+          throw new Error('No se pudo inicializar la rutina.');
+        }
+
+        const ordenNext = ejercicios.length + 1;
+
+        if (isSupabaseConfigured) {
+          const { error } = await supabaseAdmin.from('ejercicios').insert({
+            rutina_id: targetRutinaId,
+            nombre: nombreEj.trim(),
+            series: seriesNum,
+            repeticiones: repsEj.trim(),
+            orden: ordenNext
+          });
+          if (error) throw error;
+        } else {
+          const newEj: Ejercicio = {
+            id: `e-${Date.now()}`,
+            rutina_id: targetRutinaId,
+            nombre: nombreEj.trim(),
+            series: seriesNum,
+            repeticiones: repsEj.trim(),
+            orden: ordenNext
+          };
+          const allE = MockStore.getEjercicios(targetRutinaId);
+          MockStore.saveEjercicios([...allE, newEj]);
+        }
+
+        showToast('Ejercicio Añadido', `"${nombreEj.trim()}" (${seriesNum}x${repsEj.trim()})`, 'success');
       }
 
-      showToast('Ejercicio Añadido', `"${nombreEj.trim()}" (${seriesEj}x${repsEj.trim()})`, 'success');
       setModalEjOpen(false);
+      setEditingEj(null);
       setNombreEj('');
-      setSeriesEj(4);
+      setSeriesEj('3');
       setRepsEj('10-12');
       await cargarRutinaDia(activeDia);
     } catch (err: any) {
-      showToast('Error Añadiendo Ejercicio', err.message, 'error');
+      showToast('Error Guardando Ejercicio', err.message, 'error');
     } finally {
       setLoadingEjSave(false);
     }
@@ -197,7 +242,7 @@ export const MiRutinaSemanal: React.FC = () => {
     if (!confirm('¿Eliminar ejercicio?')) return;
     try {
       if (isSupabaseConfigured) {
-        await supabase.from('ejercicios').delete().eq('id', id);
+        await supabaseAdmin.from('ejercicios').delete().eq('id', id);
       } else {
         if (rutina) {
           const ejs = MockStore.getEjercicios(rutina.id).filter(e => e.id !== id);
@@ -263,7 +308,7 @@ export const MiRutinaSemanal: React.FC = () => {
             <Dumbbell className="w-4 h-4 text-red-500" /> Ejercicios ({ejercicios.length})
           </h3>
           <Button
-            onClick={() => setModalEjOpen(true)}
+            onClick={handleAbrirCrear}
             variant="primary"
             size="sm"
             icon={<Plus className="w-4 h-4" />}
@@ -299,23 +344,36 @@ export const MiRutinaSemanal: React.FC = () => {
                   </div>
                 </div>
 
-                <button
-                  onClick={() => handleEliminarEjercicio(ej.id)}
-                  className="p-2 text-zinc-500 hover:text-red-400 hover:bg-zinc-800 rounded-xl transition-colors"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </button>
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={() => handleAbrirEditar(ej)}
+                    title="Editar ejercicio"
+                    className="p-2 text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800 rounded-xl transition-colors"
+                  >
+                    <Pencil className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() => handleEliminarEjercicio(ej.id)}
+                    title="Eliminar ejercicio"
+                    className="p-2 text-zinc-500 hover:text-red-400 hover:bg-zinc-800 rounded-xl transition-colors"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
               </div>
             ))}
           </div>
         )}
       </div>
 
-      {/* Modal Crear Ejercicio (Simplificado sin fricción) */}
+      {/* Modal Crear / Editar Ejercicio */}
       <Modal
         isOpen={modalEjOpen}
-        onClose={() => setModalEjOpen(false)}
-        title={`Nuevo Ejercicio (${activeDia})`}
+        onClose={() => {
+          setModalEjOpen(false);
+          setEditingEj(null);
+        }}
+        title={editingEj ? `Editar Ejercicio (${activeDia})` : `Nuevo Ejercicio (${activeDia})`}
       >
         <form onSubmit={handleAgregarEjercicio} className="space-y-4">
           <Input
@@ -331,7 +389,8 @@ export const MiRutinaSemanal: React.FC = () => {
               label="Series"
               type="number"
               value={seriesEj}
-              onChange={(e) => setSeriesEj(parseInt(e.target.value) || 4)}
+              onChange={(e) => setSeriesEj(e.target.value)}
+              placeholder="3"
               required
             />
             <Input
@@ -346,7 +405,10 @@ export const MiRutinaSemanal: React.FC = () => {
           <div className="pt-4 flex gap-3">
             <Button
               type="button"
-              onClick={() => setModalEjOpen(false)}
+              onClick={() => {
+                setModalEjOpen(false);
+                setEditingEj(null);
+              }}
               variant="ghost"
               className="flex-1 text-xs"
             >
@@ -358,7 +420,7 @@ export const MiRutinaSemanal: React.FC = () => {
               loading={loadingEjSave}
               className="flex-1 text-xs font-bold"
             >
-              Añadir Ejercicio
+              {editingEj ? 'Guardar Cambios' : 'Añadir Ejercicio'}
             </Button>
           </div>
         </form>

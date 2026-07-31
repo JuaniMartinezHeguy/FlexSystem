@@ -3,7 +3,7 @@ import { Modal } from '../common/Modal';
 import { Badge } from '../common/Badge';
 import { Skeleton } from '../common/Skeleton';
 import { Usuario, Suscripcion, Asistencia } from '../../types/database';
-import { isSupabaseConfigured, supabase } from '../../lib/supabase';
+import { isSupabaseConfigured, supabase, supabaseAdmin } from '../../lib/supabase';
 import { MockStore } from '../../lib/mockStore';
 import { formatDateART, getDaysRemaining, isSubscriptionExpired } from '../../lib/dateUtils';
 import { Calendar, CreditCard, User, Phone, CheckCircle, Clock } from 'lucide-react';
@@ -35,8 +35,8 @@ export const DetalleAlumnoModal: React.FC<DetalleAlumnoModalProps> = ({
 
     if (isSupabaseConfigured) {
       const [subsRes, asistRes] = await Promise.all([
-        supabase.from('suscripciones').select('*, plan:planes(*)').eq('usuario_id', alumno.id).order('creado_en', { ascending: false }),
-        supabase.from('asistencias').select('*').eq('usuario_id', alumno.id).order('fecha', { ascending: false }).limit(30)
+        supabaseAdmin.from('suscripciones').select('*, plan:planes(*)').eq('usuario_id', alumno.id).order('creado_en', { ascending: false }),
+        supabaseAdmin.from('asistencias').select('*').eq('usuario_id', alumno.id).order('fecha', { ascending: false }).limit(30)
       ]);
 
       if (subsRes.data) setSuscripciones(subsRes.data as Suscripcion[]);

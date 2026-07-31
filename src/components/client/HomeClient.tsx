@@ -11,7 +11,7 @@ import { Skeleton } from '../common/Skeleton';
 import { Badge } from '../common/Badge';
 import { useAuth } from '../../context/AuthContext';
 import { Rutina, Ejercicio } from '../../types/database';
-import { isSupabaseConfigured, supabase } from '../../lib/supabase';
+import { isSupabaseConfigured, supabase, supabaseAdmin } from '../../lib/supabase';
 import { MockStore } from '../../lib/mockStore';
 import { 
   getTodayART, 
@@ -56,10 +56,10 @@ export const HomeClient: React.FC = () => {
     if (isSupabaseConfigured) {
       // 1. Asistencia de hoy y semana
       const [asistHoyRes, asistSemanaRes, rutinaRes] = await Promise.all([
-        supabase.from('asistencias').select('*').eq('usuario_id', user.id).eq('fecha', hoyStr).maybeSingle(),
-        supabase.from('asistencias').select('*').eq('usuario_id', user.id).gte('fecha', lunes).lte('fecha', sabado).eq('asistio', true),
+        supabaseAdmin.from('asistencias').select('*').eq('usuario_id', user.id).eq('fecha', hoyStr).maybeSingle(),
+        supabaseAdmin.from('asistencias').select('*').eq('usuario_id', user.id).gte('fecha', lunes).lte('fecha', sabado).eq('asistio', true),
         diaSemanaHoy !== 'Domingo'
-          ? supabase.from('rutinas').select('*, ejercicios(*)').eq('usuario_id', user.id).eq('dia_semana', diaSemanaHoy).maybeSingle()
+          ? supabaseAdmin.from('rutinas').select('*, ejercicios(*)').eq('usuario_id', user.id).eq('dia_semana', diaSemanaHoy).maybeSingle()
           : Promise.resolve({ data: null })
       ]);
 
@@ -106,7 +106,7 @@ export const HomeClient: React.FC = () => {
 
     try {
       if (isSupabaseConfigured) {
-        const { error } = await supabase.from('asistencias').upsert({
+        const { error } = await supabaseAdmin.from('asistencias').upsert({
           usuario_id: user.id,
           fecha: hoyStr,
           asistio: asistioVal
@@ -174,7 +174,7 @@ export const HomeClient: React.FC = () => {
 
         {esDomingo ? (
           <div className="p-4 bg-zinc-950/60 border border-zinc-800/80 rounded-2xl text-center text-xs text-zinc-400">
-            ☀️ Hoy Domingo es día libre de descanso. Los domingos no restan efectividad a tu meta.
+            Hoy Domingo es día libre de descanso. Los domingos no restan efectividad a tu meta.
           </div>
         ) : metaCumplida ? (
           <div className="p-4 bg-emerald-950/40 border border-emerald-800/60 rounded-2xl text-center space-y-1">

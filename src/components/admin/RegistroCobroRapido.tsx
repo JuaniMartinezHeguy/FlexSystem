@@ -5,7 +5,7 @@ import { Button } from '../common/Button';
 import { Modal } from '../common/Modal';
 import { Badge } from '../common/Badge';
 import { Plan, Usuario, Suscripcion, MedioPago } from '../../types/database';
-import { isSupabaseConfigured, supabase } from '../../lib/supabase';
+import { isSupabaseConfigured, supabase, supabaseAdmin } from '../../lib/supabase';
 import { MockStore } from '../../lib/mockStore';
 import { generateInitialPassword, dniToEmail } from '../../lib/authHelpers';
 import { getTodayART, calculateNewExpirationDate, formatDateART, isSubscriptionExpired } from '../../lib/dateUtils';
@@ -54,7 +54,7 @@ export const RegistroCobroRapido: React.FC<RegistroCobroRapidoProps> = ({ onNavi
 
   const cargarPlanes = async () => {
     if (isSupabaseConfigured) {
-      const { data } = await supabase.from('planes').select('*').eq('activo', true);
+      const { data } = await supabaseAdmin.from('planes').select('*').eq('activo', true);
       if (data) {
         setPlanes(data);
         if (data.length > 0) {
@@ -125,7 +125,7 @@ export const RegistroCobroRapido: React.FC<RegistroCobroRapidoProps> = ({ onNavi
 
         const userId = authData.user.id;
 
-        const { error: userError } = await supabase.from('usuarios').insert({
+        const { error: userError } = await supabaseAdmin.from('usuarios').insert({
           id: userId,
           dni: cleanDNI,
           nombre,
@@ -136,7 +136,7 @@ export const RegistroCobroRapido: React.FC<RegistroCobroRapidoProps> = ({ onNavi
 
         if (userError) throw userError;
 
-        const { error: subError } = await supabase.from('suscripciones').insert({
+        const { error: subError } = await supabaseAdmin.from('suscripciones').insert({
           usuario_id: userId,
           plan_id: planId,
           monto_pagado: precio,
@@ -269,7 +269,7 @@ export const RegistroCobroRapido: React.FC<RegistroCobroRapidoProps> = ({ onNavi
 
     try {
       if (isSupabaseConfigured) {
-        const { error } = await supabase.from('suscripciones').insert({
+        const { error } = await supabaseAdmin.from('suscripciones').insert({
           usuario_id: searchResult.usuario.id,
           plan_id: renovandoPlanId,
           monto_pagado: precio,
@@ -401,9 +401,9 @@ export const RegistroCobroRapido: React.FC<RegistroCobroRapidoProps> = ({ onNavi
                   onChange={(e) => setMedioPago(e.target.value as MedioPago)}
                   className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-3 text-sm text-zinc-100 focus:outline-none focus:border-red-500 focus:ring-1 focus:ring-red-500"
                 >
-                  <option value="efectivo">💵 Efectivo</option>
-                  <option value="transferencia">🏦 Transferencia / MercadoPago</option>
-                  <option value="tarjeta">💳 Tarjeta Débito/Crédito</option>
+                  <option value="efectivo">Efectivo</option>
+                  <option value="transferencia">Transferencia / MercadoPago</option>
+                  <option value="tarjeta">Tarjeta Débito/Crédito</option>
                 </select>
               </div>
             </div>
@@ -549,7 +549,7 @@ export const RegistroCobroRapido: React.FC<RegistroCobroRapidoProps> = ({ onNavi
       <Modal
         isOpen={modalClave.open}
         onClose={() => setModalClave({ open: false, nombre: '', dni: '', pass: '' })}
-        title="🔑 Alta Exitosa — Contraseña Inicial"
+        title="Alta Exitosa — Contraseña Inicial"
       >
         <div className="space-y-4 text-center">
           <div className="w-12 h-12 bg-red-600/10 border border-red-500/20 text-red-500 rounded-full flex items-center justify-center mx-auto">

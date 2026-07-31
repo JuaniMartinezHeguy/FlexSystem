@@ -7,6 +7,17 @@
     @apply bg-zinc-950 text-zinc-100 antialiased min-h-screen overflow-x-hidden;
     font-feature-settings: "cv02", "cv03", "cv04", "cv11";
   }
+
+  /* Quitar las flechas / spinners de subir y bajar número en todos los formularios */
+  input[type="number"]::-webkit-inner-spin-button,
+  input[type="number"]::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+  input[type="number"] {
+    -moz-appearance: textfield;
+    appearance: textfield;
+  }
 }
 
 /* Custom Scrollbars */

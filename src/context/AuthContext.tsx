@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { Usuario, Suscripcion } from '../types/database';
-import { supabase, isSupabaseConfigured } from '../lib/supabase';
+import { supabase, supabaseAdmin, isSupabaseConfigured } from '../lib/supabase';
 import { dniToEmail } from '../lib/authHelpers';
 import { MockStore } from '../lib/mockStore';
 import { getTodayART, isSubscriptionExpired } from '../lib/dateUtils';
@@ -35,7 +35,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (!user || user.rol !== 'cliente') return;
 
     if (isSupabaseConfigured) {
-      const channel = supabase
+      const channel = supabaseAdmin
         .channel('realtime-suscripcion-cliente')
         .on(
           'postgres_changes',
@@ -52,7 +52,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         .subscribe();
 
       return () => {
-        supabase.removeChannel(channel);
+        supabaseAdmin.removeChannel(channel);
       };
     } else {
       // En modo mock, escuchamos un evento personalizado para actualización en vivo entre ventanas
@@ -70,7 +70,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       try {
         const { data: { session } } = await supabase.auth.getSession();
         if (session?.user) {
-          const { data: userData } = await supabase
+          const { data: userData } = await supabaseAdmin
             .from('usuarios')
             .select('*')
             .eq('id', session.user.id)
@@ -103,7 +103,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const fetchUserSubscription = async (usuarioId: string) => {
     if (isSupabaseConfigured) {
-      const { data } = await supabase
+      const { data } = await supabaseAdmin
         .from('suscripciones')
         .select('*, plan:planes(*)')
         .eq('usuario_id', usuarioId)
@@ -157,7 +157,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if (error) return { success: false, error: 'DNI o contraseña incorrectos.' };
       if (data.user) {
-        const { data: userData } = await supabase
+        const { data: userData } = await supabaseAdmin
           .from('usuarios')
           .select('*')
           .eq('id', data.user.id)
@@ -193,7 +193,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if (error) return { success: false, error: 'Credenciales de recepción incorrectas.' };
       if (data.user) {
-        const { data: userData } = await supabase
+        const { data: userData } = await supabaseAdmin
           .from('usuarios')
           .select('*')
           .eq('id', data.user.id)
