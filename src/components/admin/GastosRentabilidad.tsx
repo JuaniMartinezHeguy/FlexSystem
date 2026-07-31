@@ -8,6 +8,7 @@ import { Gasto, CategoriaGasto, Suscripcion } from '../../types/database';
 import { isSupabaseConfigured, supabase } from '../../lib/supabase';
 import { MockStore } from '../../lib/mockStore';
 import { getTodayART, formatDateART } from '../../lib/dateUtils';
+import { useToast } from '../../context/ToastContext';
 
 type ModoFiltro = 'mes' | 'anio';
 
@@ -29,6 +30,7 @@ const MESES = [
 const ANIOS_DISPONIBLES = Array.from({ length: 10 }, (_, i) => 2026 + i);
 
 export const GastosRentabilidad: React.FC = () => {
+  const { showToast } = useToast();
   const hoyStr = getTodayART(); // YYYY-MM-DD
   const [anioActualStr, mesActualStr] = hoyStr.split('-');
 
@@ -72,7 +74,7 @@ export const GastosRentabilidad: React.FC = () => {
     e.preventDefault();
     const numMonto = parseFloat(monto);
     if (!concepto.trim() || isNaN(numMonto) || numMonto <= 0) {
-      alert('Ingrese un concepto y monto válidos.');
+      showToast('Error de Validación', 'Ingrese un concepto y monto válidos.', 'error');
       return;
     }
 
@@ -102,12 +104,13 @@ export const GastosRentabilidad: React.FC = () => {
         MockStore.saveGastos([newGasto, ...MockStore.getGastos()]);
       }
 
+      showToast('Gasto Registrado', `"${concepto.trim()}" por $${numMonto.toLocaleString('es-AR')}`, 'success');
       setConcepto('');
       setMonto('');
       setEsFijo(false);
       await cargarDatos();
     } catch (err: any) {
-      alert('Error creando gasto: ' + err.message);
+      showToast('Error Cargando Gasto', err.message, 'error');
     } finally {
       setLoadingCreate(false);
     }
@@ -115,12 +118,17 @@ export const GastosRentabilidad: React.FC = () => {
 
   const handleEliminarGasto = async (id: string) => {
     if (!confirm('¿Desea eliminar este gasto?')) return;
-    if (isSupabaseConfigured) {
-      await supabase.from('gastos').delete().eq('id', id);
-    } else {
-      MockStore.saveGastos(MockStore.getGastos().filter(g => g.id !== id));
+    try {
+      if (isSupabaseConfigured) {
+        await supabase.from('gastos').delete().eq('id', id);
+      } else {
+        MockStore.saveGastos(MockStore.getGastos().filter(g => g.id !== id));
+      }
+      showToast('Gasto Eliminado', 'El registro de gasto fue removido con éxito.', 'success');
+      await cargarDatos();
+    } catch (err: any) {
+      showToast('Error Eliminando Gasto', err.message, 'error');
     }
-    await cargarDatos();
   };
 
   // Filtrar suscripciones según Mes y/o Año seleccionados

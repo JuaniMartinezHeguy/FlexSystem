@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { ToastProvider } from './context/ToastContext';
 import { AdminLayout } from './components/layout/AdminLayout';
 import { ClientLayout } from './components/layout/ClientLayout';
 import { LoginClient } from './components/client/LoginClient';
-import { Skeleton } from './components/common/Skeleton';
 
 const AppContent: React.FC = () => {
   const { user, loading } = useAuth();
@@ -40,7 +40,9 @@ const AppContent: React.FC = () => {
 export const App: React.FC = () => {
   return (
     <AuthProvider>
-      <AppContent />
+      <ToastProvider>
+        <AppContent />
+      </ToastProvider>
     </AuthProvider>
   );
 };

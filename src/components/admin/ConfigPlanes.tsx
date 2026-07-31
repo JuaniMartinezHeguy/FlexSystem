@@ -8,8 +8,10 @@ import { Skeleton } from '../common/Skeleton';
 import { Plan, Configuracion } from '../../types/database';
 import { isSupabaseConfigured, supabase } from '../../lib/supabase';
 import { MockStore } from '../../lib/mockStore';
+import { useToast } from '../../context/ToastContext';
 
 export const ConfigPlanes: React.FC = () => {
+  const { showToast } = useToast();
   const [planes, setPlanes] = useState<Plan[]>([]);
   const [config, setConfig] = useState<Configuracion[]>([]);
   const [loading, setLoading] = useState(true);
@@ -78,7 +80,7 @@ export const ConfigPlanes: React.FC = () => {
     e.preventDefault();
     const precioNum = parseFloat(precioPlan);
     if (!nombrePlan.trim() || isNaN(precioNum) || precioNum < 0) {
-      alert('Nombre y precio del plan válidos son requeridos.');
+      showToast('Error de Validación', 'Nombre y precio válidos son requeridos.', 'error');
       return;
     }
 
@@ -131,22 +133,65 @@ export const ConfigPlanes: React.FC = () => {
       }
 
       setModalPlanOpen(false);
+      showToast(
+        editingPlan ? 'Plan Editado' : 'Plan Creado',
+        `El plan "${nombrePlan.trim()}" se guardó correctamente.`,
+        'success'
+      );
       await cargarDatos();
     } catch (err: any) {
-      alert('Error guardando el plan: ' + err.message);
+      showToast('Error Guardando Plan', err.message, 'error');
     } finally {
       setLoadingPlanSave(false);
     }
   };
 
   const handleToggleActivo = async (plan: Plan) => {
-    if (isSupabaseConfigured) {
-      await supabase.from('planes').update({ activo: !plan.activo }).eq('id', plan.id);
-    } else {
-      const updated = MockStore.getPlanes().map(p => p.id === plan.id ? { ...p, activo: !p.activo } : p);
-      MockStore.savePlanes(updated);
+    try {
+      if (isSupabaseConfigured) {
+        await supabase.from('planes').update({ activo: !plan.activo }).eq('id', plan.id);
+      } else {
+        const updated = MockStore.getPlanes().map(p => p.id === plan.id ? { ...p, activo: !p.activo } : p);
+        MockStore.savePlanes(updated);
+      }
+      showToast(
+        'Estado del Plan',
+        `El plan "${plan.nombre}" ahora está ${!plan.activo ? 'Activo' : 'Inactivo'}.`,
+        'info'
+      );
+      await cargarDatos();
+    } catch (err: any) {
+      showToast('Error', err.message, 'error');
     }
-    await cargarDatos();
+  };
+
+  const handleEliminarPlan = async (plan: Plan) => {
+    if (!confirm(`¿Está seguro de eliminar permanentemente el plan "${plan.nombre}"?`)) return;
+
+    try {
+      if (isSupabaseConfigured) {
+        const { error } = await supabase.from('planes').delete().eq('id', plan.id);
+        if (error) {
+          if (error.code === '23503') {
+            showToast(
+              'No se puede eliminar',
+              'Existen cuotas asociadas en el historial. Desactívalo en su lugar.',
+              'error'
+            );
+            return;
+          }
+          throw error;
+        }
+      } else {
+        const updated = MockStore.getPlanes().filter(p => p.id !== plan.id);
+        MockStore.savePlanes(updated);
+      }
+
+      showToast('Plan Eliminado', `El plan "${plan.nombre}" ha sido eliminado.`, 'success');
+      await cargarDatos();
+    } catch (err: any) {
+      showToast('Error Eliminando Plan', err.message, 'error');
+    }
   };
 
   const handleGuardarConfig = async (e: React.FormEvent) => {
@@ -172,9 +217,10 @@ export const ConfigPlanes: React.FC = () => {
       }
 
       setSavedSuccess(true);
+      showToast('WhatsApp Actualizado', 'Número de Recepción guardado con éxito.', 'success');
       setTimeout(() => setSavedSuccess(false), 3000);
     } catch (err: any) {
-      alert('Error guardando configuración: ' + err.message);
+      showToast('Error Guardando Configuración', err.message, 'error');
     } finally {
       setLoadingConfigSave(false);
     }
@@ -270,7 +316,7 @@ export const ConfigPlanes: React.FC = () => {
                   <div className="flex items-center gap-2">
                     <button
                       onClick={() => handleToggleActivo(plan)}
-                      className="text-xs text-zinc-400 hover:text-zinc-200 underline px-2 py-1"
+                      className="text-xs text-zinc-400 hover:text-zinc-200 underline px-1 py-1"
                     >
                       {plan.activo ? 'Desactivar' : 'Activar'}
                     </button>
@@ -283,6 +329,13 @@ export const ConfigPlanes: React.FC = () => {
                     >
                       Editar
                     </Button>
+                    <button
+                      onClick={() => handleEliminarPlan(plan)}
+                      title="Eliminar plan"
+                      className="p-2 text-zinc-500 hover:text-red-400 hover:bg-zinc-800 rounded-xl transition-colors"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
                   </div>
                 </div>
               </div>

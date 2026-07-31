@@ -8,10 +8,12 @@ import { useAuth } from '../../context/AuthContext';
 import { DiaSemana, Rutina, Ejercicio } from '../../types/database';
 import { isSupabaseConfigured, supabase } from '../../lib/supabase';
 import { MockStore } from '../../lib/mockStore';
+import { useToast } from '../../context/ToastContext';
 
 const DIAS: DiaSemana[] = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
 
 export const MiRutinaSemanal: React.FC = () => {
+  const { showToast } = useToast();
   const { user } = useAuth();
   const [activeDia, setActiveDia] = useState<DiaSemana>('Lunes');
   const [rutina, setRutina] = useState<Rutina | null>(null);
@@ -108,9 +110,10 @@ export const MiRutinaSemanal: React.FC = () => {
           setRutina(newR);
         }
       }
+      showToast('Grupo Muscular Guardado', `Enfoque para el ${activeDia}: "${tituloGrupo.trim()}"`, 'success');
       await cargarRutinaDia(activeDia);
     } catch (err: any) {
-      alert('Error guardando grupo muscular: ' + err.message);
+      showToast('Error Guardando Grupo', err.message, 'error');
     } finally {
       setLoadingTitulo(false);
     }
@@ -161,7 +164,6 @@ export const MiRutinaSemanal: React.FC = () => {
           nombre: nombreEj.trim(),
           series: seriesEj,
           repeticiones: repsEj.trim(),
-          peso_kg: 0,
           orden: ordenNext
         });
         if (error) throw error;
@@ -172,20 +174,20 @@ export const MiRutinaSemanal: React.FC = () => {
           nombre: nombreEj.trim(),
           series: seriesEj,
           repeticiones: repsEj.trim(),
-          peso_kg: 0,
           orden: ordenNext
         };
         const allE = MockStore.getEjercicios(targetRutinaId);
         MockStore.saveEjercicios([...allE, newEj]);
       }
 
+      showToast('Ejercicio Añadido', `"${nombreEj.trim()}" (${seriesEj}x${repsEj.trim()})`, 'success');
       setModalEjOpen(false);
       setNombreEj('');
       setSeriesEj(4);
       setRepsEj('10-12');
       await cargarRutinaDia(activeDia);
     } catch (err: any) {
-      alert('Error agregando ejercicio: ' + err.message);
+      showToast('Error Añadiendo Ejercicio', err.message, 'error');
     } finally {
       setLoadingEjSave(false);
     }
@@ -193,15 +195,20 @@ export const MiRutinaSemanal: React.FC = () => {
 
   const handleEliminarEjercicio = async (id: string) => {
     if (!confirm('¿Eliminar ejercicio?')) return;
-    if (isSupabaseConfigured) {
-      await supabase.from('ejercicios').delete().eq('id', id);
-    } else {
-      if (rutina) {
-        const ejs = MockStore.getEjercicios(rutina.id).filter(e => e.id !== id);
-        MockStore.saveEjercicios(ejs);
+    try {
+      if (isSupabaseConfigured) {
+        await supabase.from('ejercicios').delete().eq('id', id);
+      } else {
+        if (rutina) {
+          const ejs = MockStore.getEjercicios(rutina.id).filter(e => e.id !== id);
+          MockStore.saveEjercicios(ejs);
+        }
       }
+      showToast('Ejercicio Eliminado', 'El ejercicio fue retirado de tu rutina.', 'info');
+      await cargarRutinaDia(activeDia);
+    } catch (err: any) {
+      showToast('Error', err.message, 'error');
     }
-    await cargarRutinaDia(activeDia);
   };
 
   return (

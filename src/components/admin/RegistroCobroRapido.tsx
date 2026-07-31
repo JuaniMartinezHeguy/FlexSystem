@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { UserPlus, Search, CreditCard, CheckCircle2, Copy, Eye, AlertCircle, Dumbbell } from 'lucide-react';
+import { UserPlus, Search, CreditCard, CheckCircle2, Copy, AlertCircle, Dumbbell } from 'lucide-react';
 import { Input } from '../common/Input';
 import { Button } from '../common/Button';
 import { Modal } from '../common/Modal';
@@ -9,12 +9,16 @@ import { isSupabaseConfigured, supabase } from '../../lib/supabase';
 import { MockStore } from '../../lib/mockStore';
 import { generateInitialPassword, dniToEmail } from '../../lib/authHelpers';
 import { getTodayART, calculateNewExpirationDate, formatDateART, isSubscriptionExpired } from '../../lib/dateUtils';
+import { createClient } from '@supabase/supabase-js';
+import { useToast } from '../../context/ToastContext';
 
 interface RegistroCobroRapidoProps {
   onNavigateToAlumnos: () => void;
 }
 
 export const RegistroCobroRapido: React.FC<RegistroCobroRapidoProps> = ({ onNavigateToAlumnos }) => {
+  const { showToast } = useToast();
+
   // Estado Formulario Nuevo Alumno
   const [dni, setDni] = useState('');
   const [nombre, setNombre] = useState('');
@@ -76,14 +80,17 @@ export const RegistroCobroRapido: React.FC<RegistroCobroRapidoProps> = ({ onNavi
     const cleanDNI = dni.trim().replace(/\D/g, '');
     if (!cleanDNI || cleanDNI.length < 7) {
       setErrorAlta('Ingrese un DNI válido de al menos 7 dígitos.');
+      showToast('Error de Validación', 'El DNI debe tener al menos 7 dígitos.', 'error');
       return;
     }
     if (!nombre.trim() || !apellido.trim()) {
       setErrorAlta('Nombre y apellido son obligatorios.');
+      showToast('Error de Validación', 'Nombre y apellido son obligatorios.', 'error');
       return;
     }
     if (!planId) {
       setErrorAlta('Seleccione un plan inicial.');
+      showToast('Error de Validación', 'Seleccione un plan inicial.', 'error');
       return;
     }
 
@@ -97,14 +104,20 @@ export const RegistroCobroRapido: React.FC<RegistroCobroRapidoProps> = ({ onNavi
 
     try {
       if (isSupabaseConfigured) {
-        // 1. Crear usuario en Auth de Supabase con email sintético
+        // Usar cliente admin con service role para crear usuarios SIN enviar emails
+        // Esto evita el rate limit de Supabase y auto-confirma la cuenta
+        const adminAuthClient = createClient(
+          import.meta.env.VITE_SUPABASE_URL,
+          import.meta.env.VITE_SUPABASE_SERVICE_ROLE_KEY,
+          { auth: { persistSession: false, autoRefreshToken: false } }
+        );
+
         const email = dniToEmail(cleanDNI);
-        const { data: authData, error: authError } = await supabase.auth.signUp({
+        const { data: authData, error: authError } = await adminAuthClient.auth.admin.createUser({
           email,
           password: initialPass,
-          options: {
-            data: { nombre, apellido, dni: cleanDNI, rol: 'cliente' }
-          }
+          email_confirm: true, // Auto-confirma sin enviar email
+          user_metadata: { nombre, apellido, dni: cleanDNI, rol: 'cliente' }
         });
 
         if (authError) throw new Error(authError.message);
@@ -112,7 +125,6 @@ export const RegistroCobroRapido: React.FC<RegistroCobroRapidoProps> = ({ onNavi
 
         const userId = authData.user.id;
 
-        // 2. Insertar fila en public.usuarios
         const { error: userError } = await supabase.from('usuarios').insert({
           id: userId,
           dni: cleanDNI,
@@ -124,7 +136,6 @@ export const RegistroCobroRapido: React.FC<RegistroCobroRapidoProps> = ({ onNavi
 
         if (userError) throw userError;
 
-        // 3. Registrar primera suscripción
         const { error: subError } = await supabase.from('suscripciones').insert({
           usuario_id: userId,
           plan_id: planId,
@@ -137,7 +148,6 @@ export const RegistroCobroRapido: React.FC<RegistroCobroRapidoProps> = ({ onNavi
 
         if (subError) throw subError;
       } else {
-        // Modo Mock
         const usuarios = MockStore.getUsuarios();
         if (usuarios.some(u => u.dni === cleanDNI)) {
           throw new Error('Ya existe un alumno registrado con este DNI.');
@@ -170,7 +180,8 @@ export const RegistroCobroRapido: React.FC<RegistroCobroRapidoProps> = ({ onNavi
         MockStore.saveSuscripciones([...MockStore.getSuscripciones(), newSub]);
       }
 
-      // Éxito -> Mostrar modal con la clave inicial
+      showToast('Alta Exitosa', `Socio ${nombre} ${apellido} registrado y cuota cobrada.`, 'success');
+
       setModalClave({
         open: true,
         nombre: `${nombre} ${apellido}`,
@@ -178,13 +189,13 @@ export const RegistroCobroRapido: React.FC<RegistroCobroRapidoProps> = ({ onNavi
         pass: initialPass
       });
 
-      // Limpiar formulario
       setDni('');
       setNombre('');
       setApellido('');
       setTelefono('');
     } catch (err: any) {
       setErrorAlta(err.message || 'Error al procesar el alta del alumno.');
+      showToast('Error en el Alta', err.message || 'No se pudo registrar al alumno.', 'error');
     } finally {
       setLoadingAlta(false);
     }
@@ -273,7 +284,7 @@ export const RegistroCobroRapido: React.FC<RegistroCobroRapidoProps> = ({ onNavi
           id: `sub-${Date.now()}`,
           usuario_id: searchResult.usuario.id,
           plan_id: renovandoPlanId,
-          monto_pagado: precio,
+          monto_pagado: renovandoMedio as any,
           medio_pago: renovandoMedio,
           fecha_inicio: hoy,
           fecha_vencimiento: nuevaFechaVenc,
@@ -284,11 +295,15 @@ export const RegistroCobroRapido: React.FC<RegistroCobroRapidoProps> = ({ onNavi
         MockStore.saveSuscripciones([...MockStore.getSuscripciones(), newSub]);
       }
 
+      showToast(
+        'Cuota Renovada',
+        `Nueva fecha de vencimiento: ${formatDateART(nuevaFechaVenc)}`,
+        'success'
+      );
       setMensajeExitoRenovacion(`¡Pago registrado! Nueva fecha de vencimiento: ${formatDateART(nuevaFechaVenc)}`);
-      // Refrescar resultado
       handleBuscarAlumno(searchQuery);
     } catch (err: any) {
-      alert('Error renovando cuota: ' + err.message);
+      showToast('Error Renovando Cuota', err.message, 'error');
     } finally {
       setLoadingRenovar(false);
     }
@@ -297,6 +312,7 @@ export const RegistroCobroRapido: React.FC<RegistroCobroRapidoProps> = ({ onNavi
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
     setCopied(true);
+    showToast('Copiado al portapapeles', 'Credenciales listas para enviar.', 'info');
     setTimeout(() => setCopied(false), 2000);
   };
 
