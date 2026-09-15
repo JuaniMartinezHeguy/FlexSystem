@@ -1,5 +1,5 @@
 -- ==============================================================================
--- SISTEMA DE GESTIÓN DE GIMNASIO (IRONHOUSE SYSTEM)
+-- SISTEMA DE GESTIÓN DE GIMNASIO (FLEX SYSTEM)
 -- SCRIPT SQL COMPLETO PARA SUPABASE (PostgreSQL + RLS + Realtime)
 -- Zona horaria de referencia: America/Argentina/Buenos_Aires (GMT-3)
 -- ==============================================================================
@@ -167,7 +167,7 @@ CREATE TABLE IF NOT EXISTS public.configuracion (
 INSERT INTO public.configuracion (clave, valor, descripcion)
 VALUES 
     ('whatsapp_recepcion', '5491100000000', 'Número de WhatsApp de recepción para consultas y renovaciones'),
-    ('nombre_gimnasio', 'IronHouse Gym', 'Nombre comercial del centro de entrenamiento')
+    ('nombre_gimnasio', 'Flex Gym', 'Nombre comercial del centro de entrenamiento')
 ON CONFLICT (clave) DO NOTHING;
 
 INSERT INTO public.planes (nombre, dias_duracion, meta_dias_semana, precio, activo)

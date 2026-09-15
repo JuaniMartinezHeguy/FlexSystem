@@ -1,30 +1,39 @@
 import React, { useEffect, useState } from 'react';
 import { Modal } from '../common/Modal';
 import { Badge } from '../common/Badge';
+import { Button } from '../common/Button';
 import { Skeleton } from '../common/Skeleton';
 import { Usuario, Suscripcion, Asistencia } from '../../types/database';
-import { isSupabaseConfigured, supabase, supabaseAdmin } from '../../lib/supabase';
+import { isSupabaseConfigured, supabaseAdmin } from '../../lib/supabase';
 import { MockStore } from '../../lib/mockStore';
 import { formatDateART, getDaysRemaining, isSubscriptionExpired } from '../../lib/dateUtils';
-import { Calendar, CreditCard, User, Phone, CheckCircle, Clock } from 'lucide-react';
+import { useToast } from '../../context/ToastContext';
+import { Calendar, CreditCard, User, Phone, CheckCircle, Trash2, AlertTriangle } from 'lucide-react';
+import { createClient } from '@supabase/supabase-js';
 
 interface DetalleAlumnoModalProps {
   isOpen: boolean;
   onClose: () => void;
   alumno: Usuario | null;
+  onAlumnoEliminado?: () => void;
 }
 
 export const DetalleAlumnoModal: React.FC<DetalleAlumnoModalProps> = ({
   isOpen,
   onClose,
-  alumno
+  alumno,
+  onAlumnoEliminado
 }) => {
+  const { showToast } = useToast();
   const [suscripciones, setSuscripciones] = useState<Suscripcion[]>([]);
   const [asistencias, setAsistencias] = useState<Asistencia[]>([]);
   const [loading, setLoading] = useState(true);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     if (isOpen && alumno) {
+      setConfirmDelete(false);
       cargarDetalles();
     }
   }, [isOpen, alumno]);
@@ -54,6 +63,50 @@ export const DetalleAlumnoModal: React.FC<DetalleAlumnoModalProps> = ({
       setAsistencias(asist);
     }
     setLoading(false);
+  };
+
+  const handleEliminarAlumno = async () => {
+    if (!alumno) return;
+    setDeleting(true);
+    try {
+      if (isSupabaseConfigured) {
+        // 1. Borrar de base de datos relacional (cascada de FK elimina suscripciones, rutinas, asistencias)
+        const { error: dbError } = await supabaseAdmin
+          .from('usuarios')
+          .delete()
+          .eq('id', alumno.id);
+
+        if (dbError) throw dbError;
+
+        // 2. Intentar borrar de Supabase Auth si hay Service Role Key
+        try {
+          if (import.meta.env.VITE_SUPABASE_SERVICE_ROLE_KEY) {
+            const adminAuthClient = createClient(
+              import.meta.env.VITE_SUPABASE_URL,
+              import.meta.env.VITE_SUPABASE_SERVICE_ROLE_KEY,
+              { auth: { persistSession: false, autoRefreshToken: false } }
+            );
+            await adminAuthClient.auth.admin.deleteUser(alumno.id);
+          }
+        } catch (authErr) {
+          console.warn('Nota: No se pudo eliminar de auth.users o no hay permisos suficientes:', authErr);
+        }
+      } else {
+        MockStore.deleteUsuario(alumno.id);
+      }
+
+      showToast(`Alumno ${alumno.nombre} ${alumno.apellido} eliminado con éxito.`, 'success');
+      setConfirmDelete(false);
+      onClose();
+      if (onAlumnoEliminado) {
+        onAlumnoEliminado();
+      }
+    } catch (err: any) {
+      console.error('Error al eliminar alumno:', err);
+      showToast(err.message || 'No se pudo eliminar al alumno.', 'error');
+    } finally {
+      setDeleting(false);
+    }
   };
 
   if (!alumno) return null;
@@ -152,6 +205,59 @@ export const DetalleAlumnoModal: React.FC<DetalleAlumnoModalProps> = ({
               </div>
             )}
           </div>
+        </div>
+
+        {/* Zona de Eliminación */}
+        <div className="pt-4 border-t border-zinc-800/80">
+          {!confirmDelete ? (
+            <div className="flex justify-between items-center">
+              <span className="text-[11px] text-zinc-500">
+                Acción administrativa
+              </span>
+              <Button
+                onClick={() => setConfirmDelete(true)}
+                variant="ghost"
+                size="sm"
+                icon={<Trash2 className="w-4 h-4 text-red-400" />}
+                className="text-red-400 hover:text-red-300 hover:bg-red-950/40 border border-red-900/30 text-xs font-semibold"
+              >
+                Eliminar Alumno
+              </Button>
+            </div>
+          ) : (
+            <div className="bg-red-950/30 border border-red-800/60 p-3.5 rounded-xl space-y-3">
+              <div className="flex items-start gap-2.5">
+                <AlertTriangle className="w-5 h-5 text-red-400 shrink-0 mt-0.5" />
+                <div className="text-xs">
+                  <p className="font-bold text-red-200">¿Eliminar definitivamente a {alumno.nombre} {alumno.apellido}?</p>
+                  <p className="text-zinc-400 mt-0.5 leading-relaxed">
+                    Se borrará el socio, su usuario y todo su historial de pagos, rutinas y asistencias. Esta acción no se puede deshacer.
+                  </p>
+                </div>
+              </div>
+              <div className="flex justify-end gap-2 pt-1">
+                <Button
+                  onClick={() => setConfirmDelete(false)}
+                  variant="ghost"
+                  size="sm"
+                  disabled={deleting}
+                  className="text-xs"
+                >
+                  Cancelar
+                </Button>
+                <Button
+                  onClick={handleEliminarAlumno}
+                  variant="danger"
+                  size="sm"
+                  loading={deleting}
+                  icon={<Trash2 className="w-3.5 h-3.5" />}
+                  className="text-xs font-bold bg-red-600 hover:bg-red-500 text-white"
+                >
+                  Sí, Eliminar Alumno
+                </Button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </Modal>

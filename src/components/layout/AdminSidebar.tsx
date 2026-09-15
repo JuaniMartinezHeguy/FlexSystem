@@ -45,7 +45,7 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
           </div>
           <div>
             <h1 className="font-extrabold text-base tracking-tight text-white uppercase flex items-center gap-1.5">
-              IRONHOUSE
+              FLEX
             </h1>
             <span className="inline-flex items-center gap-1 text-[10px] font-bold text-red-400 bg-red-950/50 px-2 py-0.5 rounded-full border border-red-900/50">
               <ShieldCheck className="w-3 h-3" /> Panel Admin

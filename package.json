@@ -1,5 +1,5 @@
 {
-  "name": "ironhousesystem",
+  "name": "flex-system",
   "version": "1.0.0",
   "description": "Sistema Web de Gestión de Gimnasio (Panel Admin + Portal Cliente PWA)",
   "type": "module",

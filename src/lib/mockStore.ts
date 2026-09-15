@@ -3,14 +3,14 @@ import { getTodayART, calculateNewExpirationDate } from './dateUtils';
 
 // Almacén reactivo local en localStorage para modo demostración/fallback
 const STORAGE_KEYS = {
-  USUARIOS: 'ironhouse_mock_usuarios',
-  PLANES: 'ironhouse_mock_planes',
-  SUSCRIPCIONES: 'ironhouse_mock_suscripciones',
-  ASISTENCIAS: 'ironhouse_mock_asistencias',
-  RUTINAS: 'ironhouse_mock_rutinas',
-  EJERCICIOS: 'ironhouse_mock_ejercicios',
-  GASTOS: 'ironhouse_mock_gastos',
-  CONFIGURACION: 'ironhouse_mock_configuracion',
+  USUARIOS: 'flex_mock_usuarios',
+  PLANES: 'flex_mock_planes',
+  SUSCRIPCIONES: 'flex_mock_suscripciones',
+  ASISTENCIAS: 'flex_mock_asistencias',
+  RUTINAS: 'flex_mock_rutinas',
+  EJERCICIOS: 'flex_mock_ejercicios',
+  GASTOS: 'flex_mock_gastos',
+  CONFIGURACION: 'flex_mock_configuracion',
 };
 
 const hoy = getTodayART();
@@ -24,7 +24,7 @@ const INITIAL_PLANES: Plan[] = [
 ];
 
 const INITIAL_USUARIOS: Usuario[] = [
-  { id: 'usr-admin', dni: '11111111', nombre: 'Recepción', apellido: 'IronHouse', telefono: '1122334455', rol: 'admin' },
+  { id: 'usr-admin', dni: '11111111', nombre: 'Recepción', apellido: 'Flex', telefono: '1122334455', rol: 'admin' },
   { id: 'usr-1', dni: '40123456', nombre: 'Juan', apellido: 'Pérez', telefono: '5491145678901', rol: 'cliente' },
   { id: 'usr-2', dni: '41234567', nombre: 'María', apellido: 'Gómez', telefono: '5491145678902', rol: 'cliente' },
   { id: 'usr-3', dni: '38999888', nombre: 'Carlos', apellido: 'Rossi', telefono: '5491145678903', rol: 'cliente' },
@@ -68,7 +68,7 @@ const INITIAL_SUSCRIPCIONES: Suscripcion[] = [
 
 const INITIAL_CONFIG: Configuracion[] = [
   { clave: 'whatsapp_recepcion', valor: '5491100000000', descripcion: 'WhatsApp de Recepción' },
-  { clave: 'nombre_gimnasio', valor: 'IronHouse Gym', descripcion: 'Nombre del Gimnasio' }
+  { clave: 'nombre_gimnasio', valor: 'Flex Gym', descripcion: 'Nombre del Gimnasio' }
 ];
 
 const INITIAL_GASTOS: Gasto[] = [
@@ -97,7 +97,15 @@ const INITIAL_EJERCICIOS: Ejercicio[] = [
 
 function getStoredItem<T>(key: string, initial: T): T {
   try {
-    const data = localStorage.getItem(key);
+    let data = localStorage.getItem(key);
+    if (!data) {
+      const oldKey = key.replace('flex_', 'ironhouse_');
+      const oldData = localStorage.getItem(oldKey);
+      if (oldData) {
+        data = oldData;
+        localStorage.setItem(key, oldData);
+      }
+    }
     return data ? JSON.parse(data) : initial;
   } catch {
     return initial;
@@ -177,5 +185,25 @@ export class MockStore {
 
   static saveEjercicios(ejercicios: Ejercicio[]): void {
     setStoredItem(STORAGE_KEYS.EJERCICIOS, ejercicios);
+  }
+
+  static deleteUsuario(usuarioId: string): void {
+    const usuarios = this.getUsuarios().filter(u => u.id !== usuarioId);
+    this.saveUsuarios(usuarios);
+
+    const subs = this.getSuscripciones().filter(s => s.usuario_id !== usuarioId);
+    this.saveSuscripciones(subs);
+
+    const asist = this.getAsistencias().filter(a => a.usuario_id !== usuarioId);
+    this.saveAsistencias(asist);
+
+    const allRutinas = getStoredItem<Rutina[]>(STORAGE_KEYS.RUTINAS, INITIAL_RUTINAS);
+    const userRutinaIds = allRutinas.filter(r => r.usuario_id === usuarioId).map(r => r.id);
+    const remainingRutinas = allRutinas.filter(r => r.usuario_id !== usuarioId);
+    this.saveRutinas(remainingRutinas);
+
+    const allEjercicios = getStoredItem<Ejercicio[]>(STORAGE_KEYS.EJERCICIOS, INITIAL_EJERCICIOS);
+    const remainingEjercicios = allEjercicios.filter(e => !userRutinaIds.includes(e.rutina_id));
+    this.saveEjercicios(remainingEjercicios);
   }
 }

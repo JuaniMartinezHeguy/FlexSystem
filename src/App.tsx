@@ -14,7 +14,7 @@ const AppContent: React.FC = () => {
       <div className="min-h-screen bg-zinc-950 flex flex-col items-center justify-center p-6 space-y-4">
         <div className="w-12 h-12 border-4 border-red-500/20 border-t-red-500 rounded-full animate-spin"></div>
         <p className="text-xs text-zinc-400 font-mono tracking-widest uppercase animate-pulse">
-          Cargando IronHouse Gym...
+          Cargando Flex Gym...
         </p>
       </div>
     );

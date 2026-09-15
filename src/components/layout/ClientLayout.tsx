@@ -43,7 +43,7 @@ export const ClientLayout: React.FC<ClientLayoutProps> = ({ onSwitchToAdminMode 
             <Dumbbell className="w-4 h-4" />
           </div>
           <div>
-            <h1 className="font-extrabold text-xs tracking-tight text-white uppercase">IRONHOUSE</h1>
+            <h1 className="font-extrabold text-xs tracking-tight text-white uppercase">FLEX</h1>
             <span className="text-[10px] text-zinc-400 font-medium">Hola, {user?.nombre || 'Socio'}</span>
           </div>
         </div>

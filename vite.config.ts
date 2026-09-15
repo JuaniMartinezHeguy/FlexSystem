@@ -8,8 +8,8 @@ export default defineConfig({
     VitePWA({
       registerType: 'autoUpdate',
       manifest: {
-        name: 'IronHouse Gym - Sistema de Gestión',
-        short_name: 'IronHouse',
+        name: 'Flex Gym - Sistema de Gestión',
+        short_name: 'Flex',
         description: 'Portal del Socio y Gestión de Gimnasio',
         theme_color: '#09090b',
         background_color: '#09090b',

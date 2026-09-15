@@ -66,81 +66,108 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const initSession = async () => {
     setLoading(true);
-    if (isSupabaseConfigured) {
-      try {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (session?.user) {
-          const { data: userData } = await supabaseAdmin
-            .from('usuarios')
-            .select('*')
-            .eq('id', session.user.id)
-            .single();
+    try {
+      if (isSupabaseConfigured) {
+        // Timeout de seguridad de 2 segundos para evitar bloqueos si Supabase no responde
+        const sessionPromise = supabase.auth.getSession();
+        const timeoutPromise = new Promise<{ data: { session: null } }>((resolve) =>
+          setTimeout(() => resolve({ data: { session: null } }), 2000)
+        );
 
-          if (userData) {
-            setUser(userData as Usuario);
-            await fetchUserSubscription(userData.id);
+        const { data: { session } } = await Promise.race([sessionPromise, timeoutPromise]);
+
+        if (session?.user) {
+          try {
+            const { data: userData } = await supabaseAdmin
+              .from('usuarios')
+              .select('*')
+              .eq('id', session.user.id)
+              .single();
+
+            if (userData) {
+              setUser(userData as Usuario);
+              await fetchUserSubscription(userData.id);
+              return;
+            }
+          } catch (e) {
+            console.warn('Error obteniendo datos de usuario Supabase:', e);
           }
         }
-      } catch (err) {
-        console.error('Error inicializando sesión Supabase', err);
-        fallbackToMockSession();
       }
-    } else {
+      // Si no hay sesión en Supabase o falló, revisar sesión mock
       fallbackToMockSession();
+    } catch (err) {
+      console.error('Error inicializando sesión:', err);
+      fallbackToMockSession();
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   const fallbackToMockSession = () => {
     setIsMock(true);
-    const storedUser = localStorage.getItem('ironhouse_current_mock_user');
-    if (storedUser) {
-      const parsedUser = JSON.parse(storedUser);
-      setUser(parsedUser);
-      fetchUserSubscription(parsedUser.id);
+    try {
+      const storedUser = localStorage.getItem('flex_current_mock_user') || localStorage.getItem('ironhouse_current_mock_user');
+      if (storedUser) {
+        const parsedUser = JSON.parse(storedUser);
+        setUser(parsedUser);
+        localStorage.setItem('flex_current_mock_user', JSON.stringify(parsedUser));
+        fetchUserSubscription(parsedUser.id);
+      }
+    } catch (e) {
+      console.warn('Error restaurando sesión mock:', e);
     }
   };
 
   const fetchUserSubscription = async (usuarioId: string) => {
-    if (isSupabaseConfigured) {
-      const { data } = await supabaseAdmin
-        .from('suscripciones')
-        .select('*, plan:planes(*)')
-        .eq('usuario_id', usuarioId)
-        .order('creado_en', { ascending: false })
-        .limit(1)
-        .maybeSingle();
+    try {
+      if (isSupabaseConfigured && !isMock) {
+        const { data, error } = await supabaseAdmin
+          .from('suscripciones')
+          .select('*, plan:planes(*)')
+          .eq('usuario_id', usuarioId)
+          .order('creado_en', { ascending: false })
+          .limit(1)
+          .maybeSingle();
 
-      if (data) {
-        // Verificar si expiró hoy
-        const hoy = getTodayART();
-        const expired = isSubscriptionExpired(data.fecha_vencimiento);
-        const subData = {
-          ...data,
-          estado: expired ? ('vencida' as const) : ('activa' as const)
-        };
-        setSubscription(subData as Suscripcion);
-      } else {
-        setSubscription(null);
-      }
-    } else {
-      const subs = MockStore.getSuscripciones();
-      const userSub = subs
-        .filter(s => s.usuario_id === usuarioId)
-        .sort((a, b) => new Date(b.creado_en || 0).getTime() - new Date(a.creado_en || 0).getTime())[0];
+        if (error) {
+          console.warn('Error obteniendo suscripción Supabase:', error);
+          setSubscription(null);
+          return;
+        }
 
-      if (userSub) {
-        const planes = MockStore.getPlanes();
-        const plan = planes.find(p => p.id === userSub.plan_id);
-        const expired = isSubscriptionExpired(userSub.fecha_vencimiento);
-        setSubscription({
-          ...userSub,
-          estado: expired ? 'vencida' : 'activa',
-          plan
-        });
+        if (data) {
+          const expired = isSubscriptionExpired(data.fecha_vencimiento);
+          const subData = {
+            ...data,
+            estado: expired ? ('vencida' as const) : ('activa' as const)
+          };
+          setSubscription(subData as Suscripcion);
+        } else {
+          setSubscription(null);
+        }
       } else {
-        setSubscription(null);
+        const subs = MockStore.getSuscripciones();
+        const userSub = subs
+          .filter(s => s.usuario_id === usuarioId)
+          .sort((a, b) => new Date(b.creado_en || 0).getTime() - new Date(a.creado_en || 0).getTime())[0];
+
+        if (userSub) {
+          const planes = MockStore.getPlanes();
+          const plan = planes.find(p => p.id === userSub.plan_id);
+          const expired = isSubscriptionExpired(userSub.fecha_vencimiento);
+          setSubscription({
+            ...userSub,
+            estado: expired ? 'vencida' : 'activa',
+            plan
+          });
+        } else {
+          setSubscription(null);
+        }
       }
+    } catch (err) {
+      console.warn('Error al verificar suscripción:', err);
+      setSubscription(null);
     }
   };
 
@@ -155,19 +182,47 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         password
       });
 
-      if (error) return { success: false, error: 'DNI o contraseña incorrectos.' };
-      if (data.user) {
-        const { data: userData } = await supabaseAdmin
+      if (data?.user) {
+        let { data: userData } = await supabaseAdmin
           .from('usuarios')
           .select('*')
           .eq('id', data.user.id)
-          .single();
+          .maybeSingle();
 
-        if (userData) {
-          setUser(userData as Usuario);
-          await fetchUserSubscription(userData.id);
-          return { success: true };
+        // Si el usuario se creó en Supabase Auth pero no tiene fila en public.usuarios
+        if (!userData) {
+          const autoProfile: Usuario = {
+            id: data.user.id,
+            dni: cleanDNI,
+            nombre: data.user.user_metadata?.nombre || 'Socio',
+            apellido: data.user.user_metadata?.apellido || '',
+            telefono: '',
+            rol: 'cliente'
+          };
+          await supabaseAdmin.from('usuarios').upsert(autoProfile);
+          userData = autoProfile;
         }
+
+        setUser(userData as Usuario);
+        await fetchUserSubscription(userData.id);
+        return { success: true };
+      }
+
+      // Si falla en Supabase pero existe en mock local
+      const usuarios = MockStore.getUsuarios();
+      const found = usuarios.find(u => u.dni === cleanDNI);
+      if (found) {
+        setUser(found);
+        localStorage.setItem('flex_current_mock_user', JSON.stringify(found));
+        await fetchUserSubscription(found.id);
+        return { success: true };
+      }
+
+      if (error) {
+        return { 
+          success: false, 
+          error: error.message === 'Invalid login credentials' ? 'DNI o contraseña incorrectos.' : error.message 
+        };
       }
     }
 
@@ -176,7 +231,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const found = usuarios.find(u => u.dni === cleanDNI);
     if (found) {
       setUser(found);
-      localStorage.setItem('ironhouse_current_mock_user', JSON.stringify(found));
+      localStorage.setItem('flex_current_mock_user', JSON.stringify(found));
       await fetchUserSubscription(found.id);
       return { success: true };
     }
@@ -184,34 +239,80 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return { success: false, error: 'No se encontró un socio registrado con el DNI ingresado.' };
   };
 
-  const loginWithEmail = async (email: string, password: string): Promise<{ success: boolean; error?: string }> => {
+  const loginWithEmail = async (emailInput: string, password: string): Promise<{ success: boolean; error?: string }> => {
+    const email = emailInput.trim();
+    if (!email || !password.trim()) {
+      return { success: false, error: 'Ingresa las credenciales de administración.' };
+    }
+
     if (isSupabaseConfigured) {
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
+      const targetEmail = email.includes('@') ? email : dniToEmail(email);
+
+      let { data, error } = await supabase.auth.signInWithPassword({
+        email: targetEmail,
         password
       });
 
-      if (error) return { success: false, error: 'Credenciales de recepción incorrectas.' };
-      if (data.user) {
-        const { data: userData } = await supabaseAdmin
+      // Intento alternativo si ingresó formato DNI o username
+      if (error && !email.includes('@')) {
+        const alt = await supabase.auth.signInWithPassword({
+          email: `${email}@flex.com`,
+          password
+        });
+        if (!alt.error) {
+          data = alt.data;
+          error = null;
+        }
+      }
+
+      if (data?.user) {
+        let { data: userData } = await supabaseAdmin
           .from('usuarios')
           .select('*')
           .eq('id', data.user.id)
-          .single();
+          .maybeSingle();
 
-        if (userData) {
-          setUser(userData as Usuario);
-          return { success: true };
+        // Si el admin se creó en Supabase Auth pero falta en public.usuarios
+        if (!userData) {
+          const autoProfile: Usuario = {
+            id: data.user.id,
+            dni: email.includes('@') ? (data.user.email?.split('@')[0] || '11111111') : email,
+            nombre: data.user.user_metadata?.nombre || 'Recepción',
+            apellido: data.user.user_metadata?.apellido || 'Flex',
+            telefono: '',
+            rol: 'admin'
+          };
+          await supabaseAdmin.from('usuarios').upsert(autoProfile);
+          userData = autoProfile;
         }
+
+        setUser(userData as Usuario);
+        return { success: true };
+      }
+
+      // Si falla en Supabase pero existe en mock admin
+      const usuarios = MockStore.getUsuarios();
+      const admin = usuarios.find(u => u.rol === 'admin');
+      if (admin && (email.toLowerCase().includes('admin') || email === admin.dni || email === '11111111')) {
+        setUser(admin);
+        localStorage.setItem('flex_current_mock_user', JSON.stringify(admin));
+        return { success: true };
+      }
+
+      if (error) {
+        return { 
+          success: false, 
+          error: error.message === 'Invalid login credentials' ? 'Email o contraseña de administración incorrectos.' : error.message 
+        };
       }
     }
 
     // Modo Mock Admin
     const usuarios = MockStore.getUsuarios();
     const admin = usuarios.find(u => u.rol === 'admin');
-    if (admin && (email.toLowerCase().includes('admin') || email === admin.dni)) {
+    if (admin && (email.toLowerCase().includes('admin') || email === admin.dni || email === '11111111')) {
       setUser(admin);
-      localStorage.setItem('ironhouse_current_mock_user', JSON.stringify(admin));
+      localStorage.setItem('flex_current_mock_user', JSON.stringify(admin));
       return { success: true };
     }
 
@@ -224,7 +325,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
     setUser(null);
     setSubscription(null);
-    localStorage.removeItem('ironhouse_current_mock_user');
+    localStorage.removeItem('flex_current_mock_user');
   };
 
   const updatePassword = async (newPassword: string): Promise<{ success: boolean; error?: string }> => {

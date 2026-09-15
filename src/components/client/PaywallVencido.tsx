@@ -34,7 +34,7 @@ export const PaywallVencido: React.FC = () => {
   const handleContactarRecepcion = () => {
     const phone = whatsappNum.replace(/\D/g, '');
     const mensaje = encodeURIComponent(
-      `Hola Recepción IronHouse Gym, soy ${user?.nombre} ${user?.apellido} (DNI ${user?.dni}). Quisiera renovar mi cuota.`
+      `Hola Recepción Flex Gym, soy ${user?.nombre} ${user?.apellido} (DNI ${user?.dni}). Quisiera renovar mi cuota.`
     );
     window.open(`https://wa.me/${phone}?text=${mensaje}`, '_blank');
   };
@@ -109,7 +109,7 @@ export const PaywallVencido: React.FC = () => {
 
       {/* Footer Info */}
       <div className="text-center text-[10px] text-zinc-600 uppercase font-mono">
-        IRONHOUSE GYM — BUENOS AIRES
+        FLEX GYM — BUENOS AIRES
       </div>
     </div>
   );

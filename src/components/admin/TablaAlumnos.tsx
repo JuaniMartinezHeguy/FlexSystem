@@ -131,7 +131,7 @@ export const TablaAlumnos: React.FC = () => {
   const handleOpenWhatsApp = (alumno: AlumnoConStatus) => {
     const targetPhone = alumno.telefono ? alumno.telefono.replace(/\D/g, '') : whatsappRecepcion.replace(/\D/g, '');
     const mensaje = encodeURIComponent(
-      `Hola ${alumno.nombre}, te contactamos de IronHouse Gym respecto a tu cuota.`
+      `Hola ${alumno.nombre}, te contactamos de Flex Gym respecto a tu cuota.`
     );
     window.open(`https://wa.me/${targetPhone}?text=${mensaje}`, '_blank');
   };
@@ -335,6 +335,7 @@ export const TablaAlumnos: React.FC = () => {
         alumno={selectedAlumno}
         isOpen={modalDetalleOpen}
         onClose={() => setModalDetalleOpen(false)}
+        onAlumnoEliminado={cargarDatos}
       />
 
       {/* Modal Cobro Rápido Directo desde la Tabla */}

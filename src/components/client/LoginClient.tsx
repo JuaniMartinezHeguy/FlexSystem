@@ -66,7 +66,7 @@ export const LoginClient: React.FC<LoginClientProps> = ({ onSwitchToAdmin }) => 
           </div>
           <div>
             <h1 className="text-2xl font-black uppercase tracking-tight text-zinc-100">
-              IRONHOUSE <span className="text-red-500">GYM</span>
+              FLEX <span className="text-red-500">GYM</span>
             </h1>
             <p className="text-xs text-zinc-400 mt-1 font-medium">
               {isAdminMode ? 'Acceso de Administración / Recepción' : 'Portal del Socio'}
@@ -121,7 +121,7 @@ export const LoginClient: React.FC<LoginClientProps> = ({ onSwitchToAdmin }) => 
             <form onSubmit={handleSubmitAdmin} className="space-y-4">
               <Input
                 label="Email o Usuario Admin"
-                placeholder="admin@ironhouse.com o 11111111"
+                placeholder="admin@flex.com o 11111111"
                 type="text"
                 value={emailAdmin}
                 onChange={(e) => setEmailAdmin(e.target.value)}

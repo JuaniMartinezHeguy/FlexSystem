@@ -1,4 +1,4 @@
-# IronHouse Gym — Sistema Web de Gestión de Gimnasio
+# Flex Gym — Sistema Web de Gestión de Gimnasio
 
 Sistema completo de gestión para gimnasios desarrollado con **React (Vite), Tailwind CSS, Lucide React, Framer Motion, Supabase (Auth, PostgreSQL, Realtime, RLS)** y **PWA**.
 
@@ -29,7 +29,7 @@ VITE_SUPABASE_ANON_KEY=tu-anon-key-de-supabase
 > *Nota*: Si no configuras las variables de Supabase inmediatamente, la aplicación iniciará automáticamente en **Modo Local Demo**, permitiéndote probar el 100% de la interfaz con datos semilla locales sin romperse.
 
 ### 3. Configurar Supabase & SQL
-Abre el SQL Editor en tu dashboard de Supabase y ejecuta todo el contenido de [`supabase/schema.sql`](file:///Users/macjota/Desktop/Repos/IronHouseSystem/supabase/schema.sql).
+Abre el SQL Editor en tu dashboard de Supabase y ejecuta todo el contenido de `supabase/schema.sql`.
 
 El script SQL creará:
 - Los tipos `ENUM` (`rol_usuario`, `medio_pago`, `estado_suscripcion`, `categoria_gasto`, `dia_semana`).
